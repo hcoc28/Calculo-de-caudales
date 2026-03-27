@@ -18,7 +18,7 @@ const TABLA_VOL_NIVEL = [
   [104784.00, 778.00]
 ];
 
-const NIVEL_MINIMO_OPERATIVO = 773.0;
+const NIVEL_MINIMO_OPERATIVO = 773.50; // no se puede producir si el nivel baja de este punto
 const HORAS_OBLIGATORIAS = [18, 19, 20, 21]; // produce de 18 a 22
 
 function round2(valor) {
@@ -218,7 +218,7 @@ function simuladorEmbalse(nivelInicial, caudalBase) {
   let mejorResumen = null;
   let mejorPotencia = 0.0;
 
-  for (let potencia = 0.5; potencia <= 10.0; potencia = round2(potencia + 0.1)) {
+  for (let potencia = 0.5; potencia <= 8.2; potencia = round2(potencia + 0.1)) {
     const intento = simularDiaConPotencia(nivelInicial, caudalBase, round2(potencia));
 
     if (
@@ -260,7 +260,6 @@ function llenarTabla(resultados) {
       <td>${r.potencia.toFixed(2)}</td>
       <td>${r.caudalSalida.toFixed(2)}</td>
       <td>${r.volumenTurbinado.toFixed(2)}</td>
-      <td>${r.ajusteEmbalse.toFixed(2)}</td>
       <td>${r.caudalIngreso.toFixed(2)}</td>
       <td>${r.volumenPorHora.toFixed(2)}</td>
       <td>${r.diferencia.toFixed(2)}</td>
