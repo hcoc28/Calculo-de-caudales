@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Embalse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="panel panel-left">
+      <h1>Simulador de Embalse</h1>
+      <p class="subtitle">Producción obligatoria de 18:00 a 22:00</p>
+
+      <label for="nivelInicial">Nivel inicial (770 - 778 msnm)</label>
+      <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80">
+
+      <label for="caudalBase">Caudal base de entrada (m³/s)</label>
+      <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 0.55">
+
+      <button id="btnCalcular">Calcular automáticamente</button>
+
+      <div id="resumen" class="summary">
+        Aquí aparecerá el resumen.
+      </div>
+    </aside>
+
+    <main class="panel panel-right">
+      <div class="table-header">
+        <h2>Resultados por hora</h2>
+      </div>
+
+      <div class="table-container">
+        <table id="tablaResultados">
+          <thead>
+            <tr>
+              <th>De</th>
+              <th>A</th>
+              <th>Acum. anterior</th>
+              <th>Potencia</th>
+              <th>Caudal salida</th>
+              <th>Vol. turbinado</th>
+              <th>Ajuste</th>
+              <th>Caudal ingreso</th>
+              <th>Vol/hora</th>
+              <th>Diferencia</th>
+              <th>Acumulado</th>
+              <th>Nivel</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
