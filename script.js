@@ -257,7 +257,6 @@ function llenarTabla(resultados) {
     fila.innerHTML = `
       <td>${r.de}</td>
       <td>${r.a}</td>
-      <td>${r.acumuladoAnterior.toFixed(2)}</td>
       <td>${r.potencia.toFixed(2)}</td>
       <td>${r.caudalSalida.toFixed(2)}</td>
       <td>${r.volumenTurbinado.toFixed(2)}</td>
