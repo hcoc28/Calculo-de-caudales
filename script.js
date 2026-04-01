@@ -25,8 +25,9 @@ const NIVEL_MINIMO_OPERATIVO = 773.50;
 const NIVEL_REBALSE = 778.00;
 const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
 const HORAS_SIMULACION = 24;
+const INTERVALO_ACTUALIZACION_MS = 10 * 60 * 1000;
 
-// Patrón aproximado basado en los datos reales compartidos
+// patrón aproximado basado en los datos que compartiste
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
   2.15, 2.35, 2.25, 2.05, 2.15, 2.05,
@@ -40,9 +41,34 @@ function round2(valor) {
 
 function setEstadoClima(texto) {
   const estado = document.getElementById("estadoClima");
-  if (estado) {
-    estado.textContent = texto;
-  }
+  if (estado) estado.textContent = texto;
+}
+
+function setUltimaActualizacion() {
+  const el = document.getElementById("ultimaActualizacion");
+  if (!el) return;
+
+  const ahora = new Date();
+  const hora = ahora.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  el.textContent = `Última actualización: ${hora}`;
+}
+
+function obtenerInputs() {
+  const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
+  const caudalBase = parseFloat(document.getElementById("caudalBase").value);
+  return { nivelInicial, caudalBase };
+}
+
+function inputsValidos() {
+  const { nivelInicial, caudalBase } = obtenerInputs();
+
+  if (isNaN(nivelInicial) || isNaN(caudalBase)) return false;
+  if (nivelInicial < 770 || nivelInicial > 778) return false;
+  return true;
 }
 
 async function obtenerLluvia24h() {
@@ -67,6 +93,32 @@ async function obtenerLluvia24h() {
   }
 
   return lluvias;
+}
+
+function mostrarClima(lluvias) {
+  const contenedor = document.getElementById("climaHoras");
+  if (!contenedor) return;
+
+  contenedor.innerHTML = "";
+
+  for (let h = 0; h < HORAS_SIMULACION; h++) {
+    const lluvia = lluvias[h] ?? 0;
+
+    const item = document.createElement("div");
+    item.className = `clima-item ${lluvia > 0 ? "lluvia" : "seco"}`;
+
+    let icono = "☀️";
+    if (lluvia > 0 && lluvia < 5) icono = "🌦️";
+    if (lluvia >= 5) icono = "🌧️";
+
+    item.innerHTML = `
+      <div class="hora">${String(h).padStart(2, "0")}:00</div>
+      <div class="icono">${icono}</div>
+      <div class="valor">${lluvia.toFixed(1)} mm</div>
+    `;
+
+    contenedor.appendChild(item);
+  }
 }
 
 function calcularFactorClima(lluvia) {
@@ -191,10 +243,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       caudalSalida = calcularCaudalSalida(potenciaHora);
       volumenTurbinado = calcularVolumenTurbinado(caudalSalida);
 
-      // CORRECCIÓN:
-      // El caudal natural de entrada NO se reduce por generar.
       qIngreso = qIngresoBaseHora;
-
       volumenPorHora = round2(qIngreso * 3600);
       diferencia = round2(volumenPorHora - volumenTurbinado);
 
@@ -373,10 +422,42 @@ function mostrarResumen(resumen) {
   `;
 }
 
-async function calcular() {
+async function ejecutarSimulacionConLluvias(lluvias, mostrarErrores = false) {
+  const { nivelInicial, caudalBase } = obtenerInputs();
+
+  if (!inputsValidos()) {
+    if (mostrarErrores) {
+      alert("Ingresa valores válidos. Nivel entre 770 y 778 y caudal numérico.");
+    }
+    return;
+  }
+
+  const lluviaTotal = round2(lluvias.reduce((a, b) => a + b, 0));
+  setEstadoClima(`Clima: datos cargados | lluvia total 24h = ${lluviaTotal} mm`);
+  setUltimaActualizacion();
+  mostrarClima(lluvias);
+
+  const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+  llenarTabla(resultados);
+  mostrarResumen(resumen);
+}
+
+async function actualizarTodoAutomaticamente() {
+  try {
+    setEstadoClima("Clima: actualizando automáticamente...");
+    const lluvias = await obtenerLluvia24h();
+    await ejecutarSimulacionConLluvias(lluvias, false);
+  } catch (error) {
+    console.error(error);
+    setEstadoClima("Clima: no disponible, simulando sin lluvia");
+    const lluvias = Array(HORAS_SIMULACION).fill(0);
+    await ejecutarSimulacionConLluvias(lluvias, false);
+  }
+}
+
+async function calcularManual() {
   const btn = document.getElementById("btnCalcular");
-  const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
-  const caudalBase = parseFloat(document.getElementById("caudalBase").value);
+  const { nivelInicial, caudalBase } = obtenerInputs();
 
   if (isNaN(nivelInicial) || isNaN(caudalBase)) {
     alert("Ingresa valores numéricos válidos.");
@@ -394,29 +475,28 @@ async function calcular() {
     setEstadoClima("Clima: obteniendo datos reales...");
 
     const lluvias = await obtenerLluvia24h();
-    const lluviaTotal = round2(lluvias.reduce((a, b) => a + b, 0));
-    setEstadoClima(`Clima: datos reales cargados | lluvia total 24h = ${lluviaTotal} mm`);
-
-    const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
-
-    llenarTabla(resultados);
-    mostrarResumen(resumen);
+    await ejecutarSimulacionConLluvias(lluvias, true);
   } catch (error) {
     console.error(error);
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
-
     const lluvias = Array(HORAS_SIMULACION).fill(0);
-    const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
-
-    llenarTabla(resultados);
-    mostrarResumen(resumen);
+    await ejecutarSimulacionConLluvias(lluvias, true);
   } finally {
     btn.disabled = false;
     btn.textContent = "Calcular";
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const btn = document.getElementById("btnCalcular");
-  btn.addEventListener("click", calcular);
+  const nivelInput = document.getElementById("nivelInicial");
+  const caudalInput = document.getElementById("caudalBase");
+
+  btn.addEventListener("click", calcularManual);
+
+  nivelInput.addEventListener("change", calcularManual);
+  caudalInput.addEventListener("change", calcularManual);
+
+  await actualizarTodoAutomaticamente();
+  setInterval(actualizarTodoAutomaticamente, INTERVALO_ACTUALIZACION_MS);
 });

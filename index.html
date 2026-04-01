@@ -10,15 +10,28 @@
   <div class="app">
     <aside class="panel panel-left">
       <h1>Cálculo de Caudales</h1>
-      <p class="subtitle">Producción obligatoria de 18:00 a 22:00</p>
+      <p class="subtitle">Producción obligatoria de 18:00 a 22:00 y operación por rebalse</p>
 
       <label for="nivelInicial">Nivel inicial (770 - 778 msnm)</label>
-      <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80">
+      <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80" value="775.80">
 
       <label for="caudalBase">Caudal base de entrada (m³/s)</label>
-      <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 0.55">
+      <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 2.00" value="2.00">
 
       <button id="btnCalcular">Calcular</button>
+
+      <div id="estadoClima" class="weather-status">
+        Clima: pendiente
+      </div>
+
+      <div id="ultimaActualizacion" class="update-status">
+        Última actualización: --
+      </div>
+
+      <div class="clima-box">
+        <h3>Clima próximas 24 horas</h3>
+        <div id="climaHoras" class="clima-grid"></div>
+      </div>
 
       <div id="resumen" class="summary">
         Aquí aparecerá el resumen.
