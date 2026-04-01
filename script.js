@@ -22,15 +22,21 @@ const TABLA_VOL_NIVEL = [
 ];
 
 const NIVEL_MINIMO_OPERATIVO = 773.50;
+const NIVEL_REBALSE = 778.00;
 const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
+const HORAS_SIMULACION = 24;
 
 function round2(valor) {
   return Math.round(valor * 100) / 100;
 }
 
+function setEstadoClima(texto) {
+  const estado = document.getElementById("estadoClima");
+  if (estado) estado.textContent = texto;
+}
+
 async function obtenerLluvia24h() {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUD}&longitude=${LONGITUD}&hourly=precipitation&forecast_days=1&timezone=auto`;
-
   const resp = await fetch(url);
 
   if (!resp.ok) {
@@ -38,12 +44,7 @@ async function obtenerLluvia24h() {
   }
 
   const data = await resp.json();
-
-  if (!data.hourly || !data.hourly.precipitation) {
-    return Array(24).fill(0);
-  }
-
-  return data.hourly.precipitation;
+  return data.hourly?.precipitation || Array(HORAS_SIMULACION).fill(0);
 }
 
 function calcularFactorClima(lluvia) {
@@ -55,10 +56,7 @@ function calcularFactorClima(lluvia) {
 }
 
 function nivelAVolumen(nivel) {
-  if (nivel <= TABLA_VOL_NIVEL[0][1]) {
-    return TABLA_VOL_NIVEL[0][0];
-  }
-
+  if (nivel <= TABLA_VOL_NIVEL[0][1]) return TABLA_VOL_NIVEL[0][0];
   if (nivel >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1]) {
     return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
   }
@@ -76,10 +74,7 @@ function nivelAVolumen(nivel) {
 }
 
 function volumenANivel(volumen) {
-  if (volumen <= TABLA_VOL_NIVEL[0][0]) {
-    return TABLA_VOL_NIVEL[0][1];
-  }
-
+  if (volumen <= TABLA_VOL_NIVEL[0][0]) return TABLA_VOL_NIVEL[0][1];
   if (volumen >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
     return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1];
   }
@@ -116,13 +111,9 @@ function generarCaudales24h(caudalBase, lluvias) {
 
   for (let h = 0; h < 24; h++) {
     const factorHora = factores[h];
-
-    // Retraso de 2 horas para simular tiempo de respuesta de la cuenca
     const lluvia = lluvias[h - 2] ?? 0;
-
     const factorClima = calcularFactorClima(lluvia);
     const caudal = caudalBase * factorHora * factorClima;
-
     resultado.push(round2(caudal));
   }
 
@@ -148,13 +139,13 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
   let nivelActual = nivelInicial;
   let produccionValida = true;
   let horasProducidas = 0;
+  let produccionExtendida = false;
 
   const resultados = [];
 
   for (let h = 0; h < 24; h++) {
     const horaDesde = h;
     const horaHasta = (h + 1) % 24;
-
     const acumuladoAnterior = volumenAcumulado;
     const qIngresoBaseHora = caudalesEntradaBase[h];
 
@@ -167,7 +158,21 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
     let diferencia = 0.0;
     let estado = "Apagada";
 
-    if (HORAS_OBLIGATORIAS.includes(h)) {
+    const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
+
+    if (nivelActual >= NIVEL_REBALSE) {
+      produccionExtendida = true;
+    }
+
+    let debeProducir = false;
+
+    if (esHoraObligatoria) {
+      debeProducir = true;
+    } else if (produccionExtendida && nivelActual > NIVEL_MINIMO_OPERATIVO) {
+      debeProducir = true;
+    }
+
+    if (debeProducir) {
       potenciaHora = potencia;
       caudalSalida = calcularCaudalSalida(potenciaHora);
       volumenTurbinado = calcularVolumenTurbinado(caudalSalida);
@@ -190,21 +195,43 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       const nivelPrueba = volumenANivel(volumenPrueba);
 
       if (nivelPrueba < NIVEL_MINIMO_OPERATIVO) {
-        produccionValida = false;
-        estado = "No viable";
-        volumenAcumulado = volumenPrueba;
-        nivelActual = nivelPrueba;
+        if (esHoraObligatoria) {
+          produccionValida = false;
+          estado = "No viable";
+          volumenAcumulado = volumenPrueba;
+          nivelActual = nivelPrueba;
+        } else {
+          produccionExtendida = false;
+          qIngreso = qIngresoBaseHora;
+          potenciaHora = 0.0;
+          caudalSalida = 0.0;
+          volumenTurbinado = 0.0;
+          ajusteEmbalse = 0.0;
+          volumenPorHora = round2(qIngreso * 3600);
+          diferencia = round2(volumenPorHora);
+          volumenAcumulado = round2(acumuladoAnterior + diferencia);
+
+          if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) {
+            volumenAcumulado = TABLA_VOL_NIVEL[0][0];
+          }
+
+          if (volumenAcumulado > TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
+            volumenAcumulado = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
+          }
+
+          nivelActual = volumenANivel(volumenAcumulado);
+          estado = "Apagada";
+        }
       } else {
         volumenAcumulado = volumenPrueba;
         nivelActual = nivelPrueba;
         horasProducidas++;
-        estado = "Encendida";
+        estado = esHoraObligatoria ? "Encendida obligatoria" : "Encendida por rebalse";
       }
     } else {
       qIngreso = qIngresoBaseHora;
       volumenPorHora = round2(qIngreso * 3600);
       diferencia = round2(volumenPorHora);
-
       volumenAcumulado = round2(acumuladoAnterior + diferencia);
 
       if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) {
@@ -219,14 +246,16 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       estado = "Apagada";
     }
 
+    if (nivelActual <= NIVEL_MINIMO_OPERATIVO && !esHoraObligatoria) {
+      produccionExtendida = false;
+    }
+
     resultados.push({
       de: horaDesde,
       a: horaHasta,
-      acumuladoAnterior: acumuladoAnterior,
       potencia: potenciaHora,
       caudalSalida: caudalSalida,
       volumenTurbinado: volumenTurbinado,
-      ajusteEmbalse: ajusteEmbalse,
       caudalIngreso: qIngreso,
       volumenPorHora: volumenPorHora,
       diferencia: diferencia,
@@ -261,10 +290,7 @@ function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
   for (let potencia = 0.5; potencia <= 8.2; potencia = round2(potencia + 0.1)) {
     const intento = simularDiaConPotencia(nivelInicial, caudalBase, round2(potencia), lluvias);
 
-    if (
-      intento.resumen.produccionValida &&
-      intento.resumen.horasProduccion === HORAS_OBLIGATORIAS.length
-    ) {
+    if (intento.resumen.produccionValida) {
       if (potencia > mejorPotencia) {
         mejorPotencia = round2(potencia);
         mejorResultado = intento.resultados;
@@ -274,11 +300,7 @@ function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
   }
 
   if (mejorResultado === null) {
-    const intento = simularDiaConPotencia(nivelInicial, caudalBase, 0.0, lluvias);
-    intento.resumen.potenciaElegida = 0.0;
-    intento.resumen.horasProduccion = 0;
-    intento.resumen.produccionValida = false;
-    return intento;
+    return simularDiaConPotencia(nivelInicial, caudalBase, 0.0, lluvias);
   }
 
   return {
@@ -316,25 +338,26 @@ function mostrarResumen(resumen) {
   const resumenDiv = document.getElementById("resumen");
 
   const estadoTexto = resumen.produccionValida
-    ? "Sí, se puede producir de 18 a 22 hrs"
-    : "No se puede cumplir la producción obligatoria de 18 a 22 hrs";
+    ? "Sí, se cumple la producción obligatoria y puede extenderse por rebalse dentro del día"
+    : "No se puede cumplir la producción obligatoria";
 
   const estadoClase = resumen.produccionValida ? "ok" : "bad";
 
   resumenDiv.innerHTML = `
-Nivel inicial: ${resumen.nivelInicial.toFixed(2)} msnm<br>
-Volumen inicial: ${resumen.volumenInicial.toFixed(2)} m³<br>
-Potencia elegida automáticamente: ${resumen.potenciaElegida.toFixed(2)}<br>
-Horas obligatorias producidas: ${resumen.horasProduccion}<br>
-Nivel final: ${resumen.nivelFinal.toFixed(2)} msnm<br>
-Volumen final: ${resumen.volumenFinal.toFixed(2)} m³<br>
-Nivel mínimo: ${resumen.nivelMinimo.toFixed(2)} msnm<br>
-Nivel máximo: ${resumen.nivelMaximo.toFixed(2)} msnm<br>
-Resultado: <span class="${estadoClase}">${estadoTexto}</span>
+    <strong>Nivel inicial:</strong> ${resumen.nivelInicial.toFixed(2)} msnm<br>
+    <strong>Volumen inicial:</strong> ${resumen.volumenInicial.toFixed(2)} m³<br>
+    <strong>Potencia elegida automáticamente:</strong> ${resumen.potenciaElegida.toFixed(2)}<br>
+    <strong>Horas totales producidas:</strong> ${resumen.horasProduccion}<br>
+    <strong>Nivel final:</strong> ${resumen.nivelFinal.toFixed(2)} msnm<br>
+    <strong>Volumen final:</strong> ${resumen.volumenFinal.toFixed(2)} m³<br>
+    <strong>Nivel mínimo:</strong> ${resumen.nivelMinimo.toFixed(2)} msnm<br>
+    <strong>Nivel máximo:</strong> ${resumen.nivelMaximo.toFixed(2)} msnm<br>
+    <strong>Resultado:</strong> <span class="${estadoClase}">${estadoTexto}</span>
   `;
 }
 
 async function calcular() {
+  const btn = document.getElementById("btnCalcular");
   const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
   const caudalBase = parseFloat(document.getElementById("caudalBase").value);
 
@@ -349,24 +372,31 @@ async function calcular() {
   }
 
   try {
-    const lluvias = await obtenerLluvia24h();
+    btn.disabled = true;
+    btn.textContent = "Calculando...";
+    setEstadoClima("Clima: obteniendo datos reales...");
 
-    console.log("Lluvias obtenidas:", lluvias);
+    const lluvias = await obtenerLluvia24h();
+    const lluviaTotal = round2(lluvias.reduce((a, b) => a + b, 0));
+    setEstadoClima(`Clima: datos reales cargados | lluvia total 24h = ${lluviaTotal} mm`);
 
     const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
-
     llenarTabla(resultados);
     mostrarResumen(resumen);
   } catch (error) {
     console.error(error);
-    alert("No se pudo obtener el clima. Se simulará sin lluvia.");
+    setEstadoClima("Clima: no disponible, simulando sin lluvia");
 
-    const lluvias = Array(24).fill(0);
+    const lluvias = Array(HORAS_SIMULACION).fill(0);
     const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
-
     llenarTabla(resultados);
     mostrarResumen(resumen);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Calcular";
   }
 }
 
-document.getElementById("btnCalcular").addEventListener("click", calcular);
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("btnCalcular").addEventListener("click", calcular);
+});
