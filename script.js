@@ -26,8 +26,7 @@ const NIVEL_REBALSE = 778.00;
 const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
 const HORAS_SIMULACION = 24;
 
-// Patrón aproximado basado en las tablas reales que mostraste.
-// Es un patrón horario relativo. Luego se escala con el caudal base.
+// Patrón aproximado basado en los datos reales compartidos
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
   2.15, 2.35, 2.25, 2.05, 2.15, 2.05,
@@ -136,12 +135,8 @@ function generarCaudales24h(caudalBase, lluvias) {
 
   for (let h = 0; h < HORAS_SIMULACION; h++) {
     const patronHora = PATRON_ENTRADA_REAL[h];
-
-    // retraso de 2 horas para que la lluvia no afecte instantáneamente
     const lluvia = lluvias[h - 2] ?? 0;
     const factorClima = calcularFactorClima(lluvia);
-
-    // se escala respecto al promedio del patrón
     const factorHorario = patronHora / promedioPatron;
 
     const caudal = caudalBase * factorHorario * factorClima;
@@ -149,20 +144,6 @@ function generarCaudales24h(caudalBase, lluvias) {
   }
 
   return resultado;
-}
-
-function calcularAjusteEmbalse(potencia, nivelActual) {
-  const ajustePotencia = potencia / 20.0;
-
-  let ajusteNivel = 0.01;
-
-  if (nivelActual >= 777.50) ajusteNivel = 0.08;
-  else if (nivelActual >= 777.00) ajusteNivel = 0.06;
-  else if (nivelActual >= 776.00) ajusteNivel = 0.04;
-  else if (nivelActual >= 775.00) ajusteNivel = 0.03;
-  else ajusteNivel = 0.02;
-
-  return round2(ajustePotencia + ajusteNivel);
 }
 
 function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
@@ -188,12 +169,10 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
     let potenciaHora = 0.0;
     let caudalSalida = 0.0;
     let volumenTurbinado = 0.0;
-    let ajusteEmbalse = 0.0;
     let qIngreso = qIngresoBaseHora;
     let volumenPorHora = 0.0;
     let diferencia = 0.0;
     let estado = "Apagada";
-    let motivo = "Sin producción";
 
     if (nivelActual >= NIVEL_REBALSE) {
       produccionExtendida = true;
@@ -203,19 +182,19 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
 
     if (esHoraObligatoria) {
       debeProducir = true;
-      motivo = "Horario obligatorio";
     } else if (produccionExtendida && nivelActual > NIVEL_MINIMO_OPERATIVO) {
       debeProducir = true;
-      motivo = "Producción por rebalse";
     }
 
     if (debeProducir) {
       potenciaHora = potencia;
       caudalSalida = calcularCaudalSalida(potenciaHora);
       volumenTurbinado = calcularVolumenTurbinado(caudalSalida);
-      ajusteEmbalse = calcularAjusteEmbalse(potenciaHora, nivelActual);
 
-      qIngreso = round2(qIngresoBaseHora - ajusteEmbalse);
+      // CORRECCIÓN:
+      // El caudal natural de entrada NO se reduce por generar.
+      qIngreso = qIngresoBaseHora;
+
       volumenPorHora = round2(qIngreso * 3600);
       diferencia = round2(volumenPorHora - volumenTurbinado);
 
@@ -235,16 +214,13 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
         if (esHoraObligatoria) {
           produccionValida = false;
           estado = "No viable";
-          motivo = "No cumple mínimo operativo";
           volumenAcumulado = volumenPrueba;
           nivelActual = nivelPrueba;
         } else {
           produccionExtendida = false;
-
           potenciaHora = 0.0;
           caudalSalida = 0.0;
           volumenTurbinado = 0.0;
-          ajusteEmbalse = 0.0;
           qIngreso = qIngresoBaseHora;
           volumenPorHora = round2(qIngreso * 3600);
           diferencia = round2(volumenPorHora);
@@ -261,7 +237,6 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
 
           nivelActual = volumenANivel(volumenAcumulado);
           estado = "Apagada";
-          motivo = "Se detuvo por nivel mínimo";
         }
       } else {
         volumenAcumulado = volumenPrueba;
@@ -273,6 +248,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       qIngreso = qIngresoBaseHora;
       volumenPorHora = round2(qIngreso * 3600);
       diferencia = round2(volumenPorHora);
+
       volumenAcumulado = round2(acumuladoAnterior + diferencia);
 
       if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) {
@@ -284,6 +260,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       }
 
       nivelActual = volumenANivel(volumenAcumulado);
+      estado = "Apagada";
     }
 
     if (nivelActual <= NIVEL_MINIMO_OPERATIVO && !esHoraObligatoria) {
@@ -301,8 +278,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       diferencia,
       acumulado: volumenAcumulado,
       nivel: nivelActual,
-      estado,
-      motivo
+      estado
     });
   }
 
