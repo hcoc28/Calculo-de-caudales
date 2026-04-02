@@ -27,7 +27,6 @@ const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
 const HORAS_SIMULACION = 24;
 const INTERVALO_ACTUALIZACION_MS = 10 * 60 * 1000;
 
-// patrón aproximado basado en los datos que compartiste
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
   2.15, 2.35, 2.25, 2.05, 2.15, 2.05,
@@ -65,60 +64,161 @@ function obtenerInputs() {
 
 function inputsValidos() {
   const { nivelInicial, caudalBase } = obtenerInputs();
-
   if (isNaN(nivelInicial) || isNaN(caudalBase)) return false;
   if (nivelInicial < 770 || nivelInicial > 778) return false;
   return true;
 }
 
-async function obtenerLluvia24h() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUD}&longitude=${LONGITUD}&hourly=precipitation&forecast_days=1&timezone=auto`;
-
-  const resp = await fetch(url);
-
-  if (!resp.ok) {
-    throw new Error("No se pudo obtener la lluvia.");
-  }
-
-  const data = await resp.json();
-
-  if (!data.hourly || !data.hourly.precipitation) {
-    return Array(HORAS_SIMULACION).fill(0);
-  }
-
-  const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
-
-  while (lluvias.length < HORAS_SIMULACION) {
-    lluvias.push(0);
-  }
-
-  return lluvias;
+function direccionViento(grados) {
+  if (grados == null || isNaN(grados)) return "--";
+  const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  const idx = Math.round(grados / 45) % 8;
+  return dirs[idx];
 }
 
-function mostrarClima(lluvias) {
-  const contenedor = document.getElementById("climaHoras");
-  if (!contenedor) return;
+function descripcionWeatherCode(code) {
+  const map = {
+    0: "Despejado",
+    1: "Mayormente despejado",
+    2: "Parcialmente nublado",
+    3: "Nublado",
+    45: "Neblina",
+    48: "Neblina con escarcha",
+    51: "Llovizna ligera",
+    53: "Llovizna",
+    55: "Llovizna intensa",
+    56: "Llovizna helada ligera",
+    57: "Llovizna helada intensa",
+    61: "Lluvia ligera",
+    63: "Lluvia",
+    65: "Lluvia intensa",
+    66: "Lluvia helada ligera",
+    67: "Lluvia helada intensa",
+    71: "Nieve ligera",
+    73: "Nieve",
+    75: "Nieve intensa",
+    77: "Granos de nieve",
+    80: "Chubascos ligeros",
+    81: "Chubascos",
+    82: "Chubascos intensos",
+    85: "Chubascos de nieve",
+    86: "Chubascos de nieve intensos",
+    95: "Tormenta",
+    96: "Tormenta con granizo",
+    99: "Tormenta fuerte con granizo"
+  };
+  return map[code] ?? "Condición desconocida";
+}
 
+function iconoWeather(code, isDay = true) {
+  const day = {
+    clear: "☀️",
+    partly: "🌤️",
+    cloudy: "☁️",
+    fog: "🌫️",
+    drizzle: "🌦️",
+    rain: "🌧️",
+    snow: "🌨️",
+    storm: "⛈️"
+  };
+
+  const night = {
+    clear: "🌙",
+    partly: "🌙☁️",
+    cloudy: "☁️",
+    fog: "🌫️",
+    drizzle: "🌦️",
+    rain: "🌧️",
+    snow: "🌨️",
+    storm: "⛈️"
+  };
+
+  const set = isDay ? day : night;
+
+  if (code === 0) return set.clear;
+  if ([1, 2].includes(code)) return set.partly;
+  if (code === 3) return set.cloudy;
+  if ([45, 48].includes(code)) return set.fog;
+  if ([51, 53, 55, 56, 57].includes(code)) return set.drizzle;
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return set.rain;
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return set.snow;
+  if ([95, 96, 99].includes(code)) return set.storm;
+
+  return set.cloudy;
+}
+
+async function obtenerDatosClima() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUD}&longitude=${LONGITUD}&timezone=auto&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,precipitation,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&forecast_days=1`;
+
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error("No se pudo obtener el clima.");
+  }
+  return await resp.json();
+}
+
+function mostrarHero(data) {
+  const current = data.current;
+  const daily = data.daily;
+
+  document.getElementById("heroFecha").textContent = new Date().toLocaleDateString("es-GT", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long"
+  });
+
+  document.getElementById("heroTemp").textContent = `${Math.round(current.temperature_2m)}°`;
+  document.getElementById("heroDesc").textContent = descripcionWeatherCode(current.weather_code);
+  document.getElementById("heroMaxMin").textContent =
+    `${Math.round(daily.temperature_2m_max[0])}° / ${Math.round(daily.temperature_2m_min[0])}°`;
+  document.getElementById("heroIcon").textContent =
+    iconoWeather(current.weather_code, current.is_day === 1);
+}
+
+function mostrarPronostico24h(data) {
+  const contenedor = document.getElementById("pronostico24h");
   contenedor.innerHTML = "";
 
-  for (let h = 0; h < HORAS_SIMULACION; h++) {
-    const lluvia = lluvias[h] ?? 0;
+  const horas = data.hourly.time.slice(0, HORAS_SIMULACION);
+  const temps = data.hourly.temperature_2m.slice(0, HORAS_SIMULACION);
+  const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
+  const codes = data.hourly.weather_code.slice(0, HORAS_SIMULACION);
+  const isDay = data.hourly.is_day.slice(0, HORAS_SIMULACION);
+
+  for (let i = 0; i < horas.length; i++) {
+    const dt = new Date(horas[i]);
+    const horaTxt = dt.toLocaleTimeString("es-GT", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
 
     const item = document.createElement("div");
-    item.className = `clima-item ${lluvia > 0 ? "lluvia" : "seco"}`;
-
-    let icono = "☀️";
-    if (lluvia > 0 && lluvia < 5) icono = "🌦️";
-    if (lluvia >= 5) icono = "🌧️";
+    item.className = "hourly-item";
 
     item.innerHTML = `
-      <div class="hora">${String(h).padStart(2, "0")}:00</div>
-      <div class="icono">${icono}</div>
-      <div class="valor">${lluvia.toFixed(1)} mm</div>
+      <div class="hourly-time">${horaTxt}</div>
+      <div class="hourly-icon">${iconoWeather(codes[i], isDay[i] === 1)}</div>
+      <div class="hourly-temp">${Math.round(temps[i])}°</div>
+      <div class="hourly-rain">${(lluvias[i] ?? 0).toFixed(1)} mm</div>
     `;
 
     contenedor.appendChild(item);
   }
+}
+
+function mostrarDetalles(data) {
+  const current = data.current;
+  const daily = data.daily;
+
+  document.getElementById("detalleHumedad").textContent = `${Math.round(current.relative_humidity_2m)}%`;
+  document.getElementById("detalleSensacion").textContent = `${Math.round(current.apparent_temperature)}°`;
+  document.getElementById("detalleViento").textContent = `${round2(current.wind_speed_10m)} km/h`;
+  document.getElementById("detalleDireccion").textContent = direccionViento(current.wind_direction_10m);
+  document.getElementById("detallePresion").textContent = `${Math.round(current.pressure_msl)}`;
+  document.getElementById("detalleAmanecer").textContent =
+    new Date(daily.sunrise[0]).toLocaleTimeString("es-GT", { hour: "2-digit", minute: "2-digit" });
+  document.getElementById("detalleAtardecer").textContent =
+    new Date(daily.sunset[0]).toLocaleTimeString("es-GT", { hour: "2-digit", minute: "2-digit" });
 }
 
 function calcularFactorClima(lluvia) {
@@ -130,10 +230,7 @@ function calcularFactorClima(lluvia) {
 }
 
 function nivelAVolumen(nivel) {
-  if (nivel <= TABLA_VOL_NIVEL[0][1]) {
-    return TABLA_VOL_NIVEL[0][0];
-  }
-
+  if (nivel <= TABLA_VOL_NIVEL[0][1]) return TABLA_VOL_NIVEL[0][0];
   if (nivel >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1]) {
     return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
   }
@@ -146,15 +243,11 @@ function nivelAVolumen(nivel) {
       return round2(v1 + ((nivel - h1) / (h2 - h1)) * (v2 - v1));
     }
   }
-
   return 0;
 }
 
 function volumenANivel(volumen) {
-  if (volumen <= TABLA_VOL_NIVEL[0][0]) {
-    return TABLA_VOL_NIVEL[0][1];
-  }
-
+  if (volumen <= TABLA_VOL_NIVEL[0][0]) return TABLA_VOL_NIVEL[0][1];
   if (volumen >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
     return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1];
   }
@@ -167,7 +260,6 @@ function volumenANivel(volumen) {
       return round2(h1 + ((volumen - v1) / (v2 - v1)) * (h2 - h1));
     }
   }
-
   return 770;
 }
 
@@ -190,7 +282,6 @@ function generarCaudales24h(caudalBase, lluvias) {
     const lluvia = lluvias[h - 2] ?? 0;
     const factorClima = calcularFactorClima(lluvia);
     const factorHorario = patronHora / promedioPatron;
-
     const caudal = caudalBase * factorHorario * factorClima;
     resultado.push(round2(caudal));
   }
@@ -213,7 +304,6 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
   for (let h = 0; h < HORAS_SIMULACION; h++) {
     const horaDesde = h;
     const horaHasta = (h + 1) % 24;
-
     const acumuladoAnterior = volumenAcumulado;
     const qIngresoBaseHora = caudalesEntrada[h];
     const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
@@ -231,12 +321,8 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
     }
 
     let debeProducir = false;
-
-    if (esHoraObligatoria) {
-      debeProducir = true;
-    } else if (produccionExtendida && nivelActual > NIVEL_MINIMO_OPERATIVO) {
-      debeProducir = true;
-    }
+    if (esHoraObligatoria) debeProducir = true;
+    else if (produccionExtendida && nivelActual > NIVEL_MINIMO_OPERATIVO) debeProducir = true;
 
     if (debeProducir) {
       potenciaHora = potencia;
@@ -249,10 +335,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
 
       let volumenPrueba = round2(acumuladoAnterior + diferencia);
 
-      if (volumenPrueba < TABLA_VOL_NIVEL[0][0]) {
-        volumenPrueba = TABLA_VOL_NIVEL[0][0];
-      }
-
+      if (volumenPrueba < TABLA_VOL_NIVEL[0][0]) volumenPrueba = TABLA_VOL_NIVEL[0][0];
       if (volumenPrueba > TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
         volumenPrueba = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
       }
@@ -275,11 +358,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
           diferencia = round2(volumenPorHora);
 
           volumenAcumulado = round2(acumuladoAnterior + diferencia);
-
-          if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) {
-            volumenAcumulado = TABLA_VOL_NIVEL[0][0];
-          }
-
+          if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) volumenAcumulado = TABLA_VOL_NIVEL[0][0];
           if (volumenAcumulado > TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
             volumenAcumulado = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
           }
@@ -297,13 +376,9 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
       qIngreso = qIngresoBaseHora;
       volumenPorHora = round2(qIngreso * 3600);
       diferencia = round2(volumenPorHora);
-
       volumenAcumulado = round2(acumuladoAnterior + diferencia);
 
-      if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) {
-        volumenAcumulado = TABLA_VOL_NIVEL[0][0];
-      }
-
+      if (volumenAcumulado < TABLA_VOL_NIVEL[0][0]) volumenAcumulado = TABLA_VOL_NIVEL[0][0];
       if (volumenAcumulado > TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
         volumenAcumulado = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
       }
@@ -333,19 +408,20 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
 
   const niveles = resultados.map(r => r.nivel);
 
-  const resumen = {
-    nivelInicial,
-    volumenInicial,
-    nivelFinal: resultados[resultados.length - 1].nivel,
-    volumenFinal: resultados[resultados.length - 1].acumulado,
-    nivelMinimo: Math.min(...niveles),
-    nivelMaximo: Math.max(...niveles),
-    potenciaElegida: potencia,
-    horasProduccion: horasProducidas,
-    produccionValida
+  return {
+    resultados,
+    resumen: {
+      nivelInicial,
+      volumenInicial,
+      nivelFinal: resultados[resultados.length - 1].nivel,
+      volumenFinal: resultados[resultados.length - 1].acumulado,
+      nivelMinimo: Math.min(...niveles),
+      nivelMaximo: Math.max(...niveles),
+      potenciaElegida: potencia,
+      horasProduccion: horasProducidas,
+      produccionValida
+    }
   };
-
-  return { resultados, resumen };
 }
 
 function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
@@ -356,12 +432,10 @@ function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
   for (let potencia = 0.5; potencia <= 8.2; potencia = round2(potencia + 0.1)) {
     const intento = simularDiaConPotencia(nivelInicial, caudalBase, round2(potencia), lluvias);
 
-    if (intento.resumen.produccionValida) {
-      if (potencia > mejorPotencia) {
-        mejorPotencia = round2(potencia);
-        mejorResultado = intento.resultados;
-        mejorResumen = intento.resumen;
-      }
+    if (intento.resumen.produccionValida && potencia > mejorPotencia) {
+      mejorPotencia = round2(potencia);
+      mejorResultado = intento.resultados;
+      mejorResumen = intento.resumen;
     }
   }
 
@@ -369,10 +443,7 @@ function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
     return simularDiaConPotencia(nivelInicial, caudalBase, 0.0, lluvias);
   }
 
-  return {
-    resultados: mejorResultado,
-    resumen: mejorResumen
-  };
+  return { resultados: mejorResultado, resumen: mejorResumen };
 }
 
 function llenarTabla(resultados) {
@@ -381,10 +452,9 @@ function llenarTabla(resultados) {
 
   resultados.forEach(r => {
     const fila = document.createElement("tr");
-
     fila.innerHTML = `
-      <td>${r.de.toString().padStart(2, "0")}:00</td>
-      <td>${r.a.toString().padStart(2, "0")}:00</td>
+      <td>${String(r.de).padStart(2, "0")}:00</td>
+      <td>${String(r.a).padStart(2, "0")}:00</td>
       <td>${r.potencia.toFixed(2)}</td>
       <td>${r.caudalSalida.toFixed(2)}</td>
       <td>${r.volumenTurbinado.toFixed(2)}</td>
@@ -395,18 +465,15 @@ function llenarTabla(resultados) {
       <td>${r.nivel.toFixed(2)}</td>
       <td>${r.estado}</td>
     `;
-
     tbody.appendChild(fila);
   });
 }
 
 function mostrarResumen(resumen) {
   const resumenDiv = document.getElementById("resumen");
-
   const estadoTexto = resumen.produccionValida
     ? "Sí, se cumple la producción obligatoria y puede extenderse por rebalse dentro del día"
     : "No se puede cumplir la producción obligatoria";
-
   const estadoClase = resumen.produccionValida ? "ok" : "bad";
 
   resumenDiv.innerHTML = `
@@ -422,21 +489,24 @@ function mostrarResumen(resumen) {
   `;
 }
 
-async function ejecutarSimulacionConLluvias(lluvias, mostrarErrores = false) {
-  const { nivelInicial, caudalBase } = obtenerInputs();
+async function renderizarTodoDesdeClima(data) {
+  const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
 
-  if (!inputsValidos()) {
-    if (mostrarErrores) {
-      alert("Ingresa valores válidos. Nivel entre 770 y 778 y caudal numérico.");
-    }
-    return;
+  while (lluvias.length < HORAS_SIMULACION) {
+    lluvias.push(0);
   }
+
+  mostrarHero(data);
+  mostrarPronostico24h(data);
+  mostrarDetalles(data);
 
   const lluviaTotal = round2(lluvias.reduce((a, b) => a + b, 0));
   setEstadoClima(`Clima: datos cargados | lluvia total 24h = ${lluviaTotal} mm`);
   setUltimaActualizacion();
-  mostrarClima(lluvias);
 
+  if (!inputsValidos()) return;
+
+  const { nivelInicial, caudalBase } = obtenerInputs();
   const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
   llenarTabla(resultados);
   mostrarResumen(resumen);
@@ -445,13 +515,20 @@ async function ejecutarSimulacionConLluvias(lluvias, mostrarErrores = false) {
 async function actualizarTodoAutomaticamente() {
   try {
     setEstadoClima("Clima: actualizando automáticamente...");
-    const lluvias = await obtenerLluvia24h();
-    await ejecutarSimulacionConLluvias(lluvias, false);
+    const data = await obtenerDatosClima();
+    await renderizarTodoDesdeClima(data);
   } catch (error) {
     console.error(error);
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
+    setUltimaActualizacion();
+
     const lluvias = Array(HORAS_SIMULACION).fill(0);
-    await ejecutarSimulacionConLluvias(lluvias, false);
+
+    if (!inputsValidos()) return;
+    const { nivelInicial, caudalBase } = obtenerInputs();
+    const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+    llenarTabla(resultados);
+    mostrarResumen(resumen);
   }
 }
 
@@ -473,14 +550,15 @@ async function calcularManual() {
     btn.disabled = true;
     btn.textContent = "Calculando...";
     setEstadoClima("Clima: obteniendo datos reales...");
-
-    const lluvias = await obtenerLluvia24h();
-    await ejecutarSimulacionConLluvias(lluvias, true);
+    const data = await obtenerDatosClima();
+    await renderizarTodoDesdeClima(data);
   } catch (error) {
     console.error(error);
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
     const lluvias = Array(HORAS_SIMULACION).fill(0);
-    await ejecutarSimulacionConLluvias(lluvias, true);
+    const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+    llenarTabla(resultados);
+    mostrarResumen(resumen);
   } finally {
     btn.disabled = false;
     btn.textContent = "Calcular";
@@ -493,7 +571,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const caudalInput = document.getElementById("caudalBase");
 
   btn.addEventListener("click", calcularManual);
-
   nivelInput.addEventListener("change", calcularManual);
   caudalInput.addEventListener("change", calcularManual);
 

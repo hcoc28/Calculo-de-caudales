@@ -3,58 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cálculo de Caudales</title>
+  <title>Simulador de Caudales</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="weather-bg"></div>
+
   <div class="app">
     <aside class="panel panel-left">
-      <h1>Cálculo de Caudales</h1>
-      <p class="subtitle">Producción obligatoria de 18:00 a 22:00 y operación por rebalse</p>
+      <div class="hero-card">
+        <div class="hero-top">
+          <div>
+            <div class="hero-location">El Cafetal</div>
+            <div id="heroFecha" class="hero-date">Cargando fecha...</div>
+          </div>
+          <div id="heroIcon" class="hero-icon">☁️</div>
+        </div>
 
-      <label for="nivelInicial">Nivel inicial (770 - 778 msnm)</label>
-      <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80" value=" ">
+        <div class="hero-main">
+          <div id="heroTemp" class="hero-temp">--°</div>
+          <div class="hero-side">
+            <div id="heroDesc" class="hero-desc">Cargando...</div>
+            <div id="heroMaxMin" class="hero-maxmin">--° / --°</div>
+          </div>
+        </div>
 
-      <label for="caudalBase">Caudal base de entrada (m³/s)</label>
-      <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 2.00" value="0.00">
-
-      <button id="btnCalcular">Calcular</button>
-
-
-      <div class="clima-box">
-        <h3>Clima próximas 24 horas</h3>
-        <div id="climaHoras" class="clima-grid"></div>
+        <div class="hero-badges">
+          <span id="estadoClima" class="badge">Clima: pendiente</span>
+          <span id="ultimaActualizacion" class="badge badge-soft">Última actualización: --</span>
+        </div>
       </div>
 
-      <div id="resumen" class="summary">
+      <div class="card">
+        <h3 class="section-title">Simulación del embalse</h3>
+
+        <label for="nivelInicial">Nivel inicial (770 - 778 msnm)</label>
+        <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80" value="775.80">
+
+        <label for="caudalBase">Caudal base de entrada (m³/s)</label>
+        <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 2.00" value="2.00">
+
+        <button id="btnCalcular">Calcular</button>
+      </div>
+
+      <div class="card">
+        <div class="section-row">
+          <h3 class="section-title">Pronóstico de 24 horas</h3>
+        </div>
+        <div id="pronostico24h" class="hourly-strip"></div>
+      </div>
+
+      <div class="details-grid">
+        <div class="detail-card">
+          <div class="detail-title">Humedad</div>
+          <div id="detalleHumedad" class="detail-value">--%</div>
+          <div class="detail-sub">Relativa</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-title">Sensación real</div>
+          <div id="detalleSensacion" class="detail-value">--°</div>
+          <div class="detail-sub">Aparente</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-title">Viento</div>
+          <div id="detalleViento" class="detail-value">-- km/h</div>
+          <div id="detalleDireccion" class="detail-sub">--</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-title">Presión</div>
+          <div id="detallePresion" class="detail-value">--</div>
+          <div class="detail-sub">mbar</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-title">Amanecer</div>
+          <div id="detalleAmanecer" class="detail-value">--:--</div>
+          <div class="detail-sub">Hoy</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-title">Atardecer</div>
+          <div id="detalleAtardecer" class="detail-value">--:--</div>
+          <div class="detail-sub">Hoy</div>
+        </div>
+      </div>
+
+      <div id="resumen" class="card summary">
         Aquí aparecerá el resumen.
       </div>
     </aside>
 
     <main class="panel panel-right">
-      <div class="table-header">
-        <h2>Resultados por hora</h2>
-      </div>
+      <div class="card">
+        <div class="section-row">
+          <h2 class="section-title">Resultados por hora</h2>
+        </div>
 
-      <div class="table-container">
-        <table id="tablaResultados">
-          <thead>
-            <tr>
-              <th>De</th>
-              <th>A</th>
-              <th>Potencia</th>
-              <th>Caudal salida</th>
-              <th>Vol. turbinado</th>
-              <th>Caudal ingreso</th>
-              <th>Vol/hora</th>
-              <th>Diferencia</th>
-              <th>Acumulado</th>
-              <th>Nivel</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="table-container">
+          <table id="tablaResultados">
+            <thead>
+              <tr>
+                <th>De</th>
+                <th>A</th>
+                <th>Potencia</th>
+                <th>Caudal salida</th>
+                <th>Vol. turbinado</th>
+                <th>Caudal ingreso</th>
+                <th>Vol/hora</th>
+                <th>Diferencia</th>
+                <th>Acumulado</th>
+                <th>Nivel</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </main>
   </div>
