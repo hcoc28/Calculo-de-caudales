@@ -485,7 +485,6 @@ function mostrarResumen(resumen) {
     <strong>Volumen final:</strong> ${resumen.volumenFinal.toFixed(2)} m³<br>
     <strong>Nivel mínimo:</strong> ${resumen.nivelMinimo.toFixed(2)} msnm<br>
     <strong>Nivel máximo:</strong> ${resumen.nivelMaximo.toFixed(2)} msnm<br>
-    <strong>Resultado:</strong> <span class="${estadoClase}">${estadoTexto}</span>
   `;
 }
 
@@ -571,8 +570,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const caudalInput = document.getElementById("caudalBase");
 
   btn.addEventListener("click", calcularManual);
-  nivelInput.addEventListener("change", calcularManual);
-  caudalInput.addEventListener("change", calcularManual);
 
   await actualizarTodoAutomaticamente();
   setInterval(actualizarTodoAutomaticamente, INTERVALO_ACTUALIZACION_MS);
