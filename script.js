@@ -550,11 +550,7 @@ function mostrarResumenDelDia() {
 
   const resumenDiv = document.getElementById("resumen");
 
-  const estadoTexto = resumen.produccionValida
-    ? "Sí, se cumple la producción obligatoria y puede extenderse por rebalse dentro del día"
-    : "No se puede cumplir la producción obligatoria";
 
-  const estadoClase = resumen.produccionValida ? "ok" : "bad";
 
   resumenDiv.innerHTML = `
     <h3>Resumen del día</h3>
