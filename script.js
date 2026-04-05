@@ -248,7 +248,6 @@ function nivelAVolumen(nivel) {
       return round2(v1 + ((nivel - h1) / (h2 - h1)) * (v2 - v1));
     }
   }
-
   return 0;
 }
 
@@ -266,7 +265,6 @@ function volumenANivel(volumen) {
       return round2(h1 + ((volumen - v1) / (v2 - v1)) * (h2 - h1));
     }
   }
-
   return 770;
 }
 
@@ -297,21 +295,18 @@ function generarCaudales24h(caudalBase, lluvias) {
 }
 
 function limitarVolumen(volumen) {
-  const minV = TABLA_VOL_NIVEL[0][0];
-  const maxV = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
-
-  if (volumen < minV) return minV;
-  if (volumen > maxV) return maxV;
-  return volumen;
+  const min = TABLA_VOL_NIVEL[0][0];
+  const max = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
+  return Math.max(min, Math.min(max, round2(volumen)));
 }
 
-function evaluarOperacion(acumuladoAnterior, qIngreso, potencia) {
-  const volumenPorHora = round2(qIngreso * 3600);
+function evaluarEscenario(acumuladoAnterior, qIngreso, potencia) {
   const caudalSalida = potencia > 0 ? calcularCaudalSalida(potencia) : 0;
   const volumenTurbinado = potencia > 0 ? calcularVolumenTurbinado(caudalSalida) : 0;
+  const volumenPorHora = round2(qIngreso * 3600);
   const diferencia = round2(volumenPorHora - volumenTurbinado);
-  const volumen = round2(limitarVolumen(acumuladoAnterior + diferencia));
-  const nivel = volumenANivel(volumen);
+  const volumenFinal = limitarVolumen(acumuladoAnterior + diferencia);
+  const nivelFinal = volumenANivel(volumenFinal);
 
   return {
     potencia,
@@ -319,120 +314,12 @@ function evaluarOperacion(acumuladoAnterior, qIngreso, potencia) {
     volumenTurbinado,
     volumenPorHora,
     diferencia,
-    volumen,
-    nivel
+    volumenFinal,
+    nivelFinal
   };
 }
 
-function promedioRango(arr, inicio, cantidad) {
-  let suma = 0;
-  let n = 0;
-
-  for (let i = inicio; i < inicio + cantidad && i < arr.length; i++) {
-    suma += arr[i];
-    n++;
-  }
-
-  return n > 0 ? suma / n : 0;
-}
-
-function hayHorasObligatoriasCerca(horaActual, ventana = 3) {
-  for (const h of HORAS_OBLIGATORIAS) {
-    if (h >= horaActual && h <= horaActual + ventana) return true;
-  }
-  return false;
-}
-
-function decidirPotenciaIA({
-  hora,
-  nivelActual,
-  acumuladoAnterior,
-  qIngresoActual,
-  caudalesEntrada,
-  enProduccion,
-  modoProduccion
-}) {
-  const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(hora);
-
-  const qProm3h = promedioRango(caudalesEntrada, hora, 3);
-  const qProm6h = promedioRango(caudalesEntrada, hora, 6);
-
-  const riesgoRebalseAhora = nivelActual >= NIVEL_REBALSE;
-  const muyCercaRebalse = nivelActual >= (NIVEL_REBALSE - 0.15);
-  const arribaSeguridad = nivelActual >= (NIVEL_MINIMO_OPERATIVO + 0.35);
-  const arribaHolgura = nivelActual >= (NIVEL_MINIMO_OPERATIVO + 0.65);
-
-  const ingresoAlto = qIngresoActual >= qProm6h;
-  const ingresoMuyAlto = qIngresoActual >= qProm6h * 1.08;
-
-  const obligatoriasCerca = hayHorasObligatoriasCerca(hora, 3);
-
-  const pruebaOff = evaluarOperacion(acumuladoAnterior, qIngresoActual, 0);
-  const prueba1 = evaluarOperacion(acumuladoAnterior, qIngresoActual, POTENCIA_UNA_UNIDAD);
-  const prueba2 = evaluarOperacion(acumuladoAnterior, qIngresoActual, POTENCIA_DOS_UNIDADES);
-
-  if (esHoraObligatoria) {
-    if (prueba1.nivel >= NIVEL_MINIMO_OPERATIVO) return POTENCIA_UNA_UNIDAD;
-    if (prueba2.nivel >= NIVEL_MINIMO_OPERATIVO) return POTENCIA_DOS_UNIDADES;
-    return POTENCIA_UNA_UNIDAD;
-  }
-
-  if (enProduccion) {
-    if (modoProduccion === 2) {
-      return POTENCIA_DOS_UNIDADES;
-    }
-
-    if (
-      riesgoRebalseAhora ||
-      (muyCercaRebalse && ingresoAlto) ||
-      (nivelActual >= NIVEL_REBALSE - 0.05 && qProm3h > qProm6h)
-    ) {
-      if (prueba2.nivel >= NIVEL_MINIMO_OPERATIVO) {
-        return POTENCIA_DOS_UNIDADES;
-      }
-    }
-
-    return POTENCIA_UNA_UNIDAD;
-  }
-
-  if (riesgoRebalseAhora) {
-    if (prueba1.nivel >= NIVEL_MINIMO_OPERATIVO && !ingresoMuyAlto) {
-      return POTENCIA_UNA_UNIDAD;
-    }
-    if (prueba2.nivel >= NIVEL_MINIMO_OPERATIVO) {
-      return POTENCIA_DOS_UNIDADES;
-    }
-    return 0;
-  }
-
-  if (
-    muyCercaRebalse &&
-    (ingresoAlto || obligatoriasCerca) &&
-    arribaSeguridad &&
-    prueba1.nivel >= NIVEL_MINIMO_OPERATIVO
-  ) {
-    return POTENCIA_UNA_UNIDAD;
-  }
-
-  if (
-    arribaHolgura &&
-    qProm3h > qProm6h &&
-    prueba1.nivel >= NIVEL_MINIMO_OPERATIVO
-  ) {
-    return POTENCIA_UNA_UNIDAD;
-  }
-
-  if (
-    pruebaOff.nivel >= NIVEL_REBALSE &&
-    prueba1.nivel >= NIVEL_MINIMO_OPERATIVO
-  ) {
-    return POTENCIA_UNA_UNIDAD;
-  }
-
-  return 0;
-}
-
-function simularDia(nivelInicial, caudalBase, lluvias) {
+function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
   const volumenInicial = nivelAVolumen(nivelInicial);
   const caudalesEntrada = generarCaudales24h(caudalBase, lluvias);
 
@@ -442,7 +329,7 @@ function simularDia(nivelInicial, caudalBase, lluvias) {
   let horasProducidas = 0;
 
   let enProduccion = false;
-  let modoProduccion = 0;
+  let modoProduccion = 0; // 0 apagada, 1 una unidad, 2 dos unidades
 
   const resultados = [];
 
@@ -451,64 +338,85 @@ function simularDia(nivelInicial, caudalBase, lluvias) {
     const horaHasta = (h + 1) % 24;
     const acumuladoAnterior = volumenAcumulado;
     const qIngreso = caudalesEntrada[h];
+    const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
 
-    const potenciaDecidida = decidirPotenciaIA({
-      hora: h,
-      nivelActual,
-      acumuladoAnterior,
-      qIngresoActual: qIngreso,
-      caudalesEntrada,
-      enProduccion,
-      modoProduccion
-    });
+    const escenarioApagado = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
+    const escenarioUna = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_UNA_UNIDAD);
+    const escenarioDos = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_DOS_UNIDADES);
 
-    let potencia = 0;
+    let operacionElegida = escenarioApagado;
     let estado = "Apagada";
 
     if (!enProduccion) {
-      if (potenciaDecidida === POTENCIA_UNA_UNIDAD) {
+      if (nivelActual >= NIVEL_REBALSE || esHoraObligatoria) {
         enProduccion = true;
         modoProduccion = 1;
-      } else if (potenciaDecidida === POTENCIA_DOS_UNIDADES) {
-        enProduccion = true;
-        modoProduccion = 2;
-      }
-    } else {
-      if (modoProduccion === 1 && potenciaDecidida === POTENCIA_DOS_UNIDADES) {
-        modoProduccion = 2;
       }
     }
 
     if (enProduccion) {
-      potencia = modoProduccion === 2 ? POTENCIA_DOS_UNIDADES : POTENCIA_UNA_UNIDAD;
-      estado = modoProduccion === 2
-        ? "Encendida continua (2 unidades)"
-        : "Encendida continua (1 unidad)";
+      if (modoProduccion === 1) {
+        const debeSubirADos =
+          nivelActual >= NIVEL_REBALSE ||
+          escenarioUna.nivelFinal >= NIVEL_REBALSE ||
+          (nivelActual >= NIVEL_REBALSE - 0.10 && qIngreso >= POTENCIA_UNA_UNIDAD);
+
+        if (debeSubirADos && escenarioDos.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+          modoProduccion = 2;
+        }
+      }
+
+      if (modoProduccion === 2) {
+        if (escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+          operacionElegida = escenarioDos;
+          estado = "Encendida continua (2 unidades)";
+        } else {
+          if (esHoraObligatoria) {
+            operacionElegida = escenarioDos;
+            estado = "No viable (2 unidades)";
+            produccionValida = false;
+          } else {
+            enProduccion = false;
+            modoProduccion = 0;
+            operacionElegida = escenarioApagado;
+            estado = "Apagada";
+          }
+        }
+      } else if (modoProduccion === 1) {
+        if (escenarioUna.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+          operacionElegida = escenarioUna;
+          estado = "Encendida continua (1 unidad)";
+        } else {
+          if (esHoraObligatoria) {
+            operacionElegida = escenarioUna;
+            estado = "No viable (1 unidad)";
+            produccionValida = false;
+          } else {
+            enProduccion = false;
+            modoProduccion = 0;
+            operacionElegida = escenarioApagado;
+            estado = "Apagada";
+          }
+        }
+      }
     }
 
-    const operacion = evaluarOperacion(acumuladoAnterior, qIngreso, potencia);
+    volumenAcumulado = operacionElegida.volumenFinal;
+    nivelActual = operacionElegida.nivelFinal;
 
-    volumenAcumulado = operacion.volumen;
-    nivelActual = operacion.nivel;
-
-    if (HORAS_OBLIGATORIAS.includes(h) && potencia === 0) {
-      produccionValida = false;
-      estado = "No viable";
-    }
-
-    if (potencia > 0) {
+    if (operacionElegida.potencia > 0) {
       horasProducidas++;
     }
 
     resultados.push({
       de: horaDesde,
       a: horaHasta,
-      potencia: operacion.potencia,
-      caudalSalida: operacion.caudalSalida,
-      volumenTurbinado: operacion.volumenTurbinado,
+      potencia: operacionElegida.potencia,
+      caudalSalida: operacionElegida.caudalSalida,
+      volumenTurbinado: operacionElegida.volumenTurbinado,
       caudalIngreso: qIngreso,
-      volumenPorHora: operacion.volumenPorHora,
-      diferencia: operacion.diferencia,
+      volumenPorHora: operacionElegida.volumenPorHora,
+      diferencia: operacionElegida.diferencia,
       acumulado: volumenAcumulado,
       nivel: nivelActual,
       estado
@@ -524,10 +432,15 @@ function simularDia(nivelInicial, caudalBase, lluvias) {
       volumenFinal: resultados[resultados.length - 1].acumulado,
       nivelMinimo: Math.min(...resultados.map(r => r.nivel)),
       nivelMaximo: Math.max(...resultados.map(r => r.nivel)),
+      potenciaElegida: POTENCIA_DOS_UNIDADES,
       horasProduccion: horasProducidas,
       produccionValida
     }
   };
+}
+
+function simuladorEmbalse(nivelInicial, caudalBase, lluvias) {
+  return simularDiaConPotencia(nivelInicial, caudalBase, POTENCIA_DOS_UNIDADES, lluvias);
 }
 
 function llenarTabla(resultados) {
@@ -573,7 +486,7 @@ async function renderizarTodoDesdeClima(data) {
   if (!inputsValidos()) return;
 
   const { nivelInicial, caudalBase } = obtenerInputs();
-  const { resultados } = simularDia(nivelInicial, caudalBase, lluvias);
+  const { resultados } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
   llenarTabla(resultados);
 }
 
@@ -591,7 +504,7 @@ async function actualizarTodoAutomaticamente() {
 
     if (!inputsValidos()) return;
     const { nivelInicial, caudalBase } = obtenerInputs();
-    const { resultados } = simularDia(nivelInicial, caudalBase, lluvias);
+    const { resultados } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
     llenarTabla(resultados);
   }
 }
@@ -624,7 +537,7 @@ async function calcularManual() {
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
 
     const lluvias = Array(HORAS_SIMULACION).fill(0);
-    const { resultados } = simularDia(nivelInicial, caudalBase, lluvias);
+    const { resultados } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
     llenarTabla(resultados);
   } finally {
     if (btn) {
