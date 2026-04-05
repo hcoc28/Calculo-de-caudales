@@ -23,8 +23,7 @@ html, body {
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top, #132c66 0%, #0a1630 45%, #07101f 100%);
+  background: radial-gradient(circle at top, #132c66 0%, #0a1630 45%, #07101f 100%);
   min-height: 100%;
 }
 
@@ -207,10 +206,7 @@ button:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
-#btnResumenDia {
-  margin-top: 10px;
-  background: linear-gradient(180deg, #334a7d, #22355c);
-}
+
 .hourly-strip {
   display: grid;
   grid-auto-flow: column;
@@ -275,20 +271,6 @@ button:disabled {
   margin-top: 8px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.summary {
-  line-height: 1.8;
-}
-
-.ok {
-  color: var(--ok);
-  font-weight: 700;
-}
-
-.bad {
-  color: var(--bad);
-  font-weight: 700;
 }
 
 .table-container {
@@ -372,6 +354,4 @@ tbody tr:hover {
     font-size: 12px;
     padding: 9px 10px;
   }
-  
-  
 }
