@@ -1,5 +1,7 @@
 const LATITUD = 15.22553;
 const LONGITUD = -90.11064;
+let climaActualGlobal = null;
+let ultimoResultadoSimulacion = null;
 
 const TABLA_VOL_NIVEL = [
   [0.00, 770.00],
@@ -485,10 +487,98 @@ function mostrarResumen(resumen) {
     <strong>Volumen final:</strong> ${resumen.volumenFinal.toFixed(2)} m³<br>
     <strong>Nivel mínimo:</strong> ${resumen.nivelMinimo.toFixed(2)} msnm<br>
     <strong>Nivel máximo:</strong> ${resumen.nivelMaximo.toFixed(2)} msnm<br>
+    <strong>Estado:</strong> <span class="${estadoClase}">${estadoTexto}</span><br>
+  `;
+}
+
+// NUEVO
+function calcularPromediosDelDia(data, caudalBase) {
+  const temperaturas = (data.hourly.temperature_2m || []).slice(0, HORAS_SIMULACION);
+  const precipitaciones = (data.hourly.precipitation || []).slice(0, HORAS_SIMULACION);
+  const humedades = [];
+
+  const humedadActual = data.current?.relative_humidity_2m ?? 0;
+  for (let i = 0; i < HORAS_SIMULACION; i++) {
+    humedades.push(humedadActual);
+  }
+
+  while (temperaturas.length < HORAS_SIMULACION) temperaturas.push(0);
+  while (precipitaciones.length < HORAS_SIMULACION) precipitaciones.push(0);
+  while (humedades.length < HORAS_SIMULACION) humedades.push(0);
+
+  const caudalesEntrada = generarCaudales24h(caudalBase, precipitaciones);
+
+  const promedioTemperatura = round2(
+    temperaturas.reduce((a, b) => a + b, 0) / temperaturas.length
+  );
+
+  const promedioPrecipitacion = round2(
+    precipitaciones.reduce((a, b) => a + b, 0) / precipitaciones.length
+  );
+
+  const promedioHumedad = round2(
+    humedades.reduce((a, b) => a + b, 0) / humedades.length
+  );
+
+  const promedioCaudalEntrada = round2(
+    caudalesEntrada.reduce((a, b) => a + b, 0) / caudalesEntrada.length
+  );
+
+  return {
+    promedioTemperatura,
+    promedioPrecipitacion,
+    promedioHumedad,
+    promedioCaudalEntrada
+  };
+}
+
+// NUEVO
+function mostrarResumenDelDia() {
+  if (!climaActualGlobal || !ultimoResultadoSimulacion) {
+    alert("Primero calcula o espera a que se carguen los datos.");
+    return;
+  }
+
+  const { caudalBase } = obtenerInputs();
+  if (isNaN(caudalBase)) {
+    alert("Ingresa un caudal base válido.");
+    return;
+  }
+
+  const resumen = ultimoResultadoSimulacion.resumen;
+  const promedios = calcularPromediosDelDia(climaActualGlobal, caudalBase);
+
+  const resumenDiv = document.getElementById("resumen");
+
+  const estadoTexto = resumen.produccionValida
+    ? "Sí, se cumple la producción obligatoria y puede extenderse por rebalse dentro del día"
+    : "No se puede cumplir la producción obligatoria";
+
+  const estadoClase = resumen.produccionValida ? "ok" : "bad";
+
+  resumenDiv.innerHTML = `
+    <h3>Resumen del día</h3>
+
+    <strong>Nivel inicial:</strong> ${resumen.nivelInicial.toFixed(2)} msnm<br>
+    <strong>Volumen inicial:</strong> ${resumen.volumenInicial.toFixed(2)} m³<br>
+    <strong>Potencia elegida automáticamente:</strong> ${resumen.potenciaElegida.toFixed(2)} MW<br>
+    <strong>Horas totales producidas:</strong> ${resumen.horasProduccion}<br>
+    <strong>Nivel final:</strong> ${resumen.nivelFinal.toFixed(2)} msnm<br>
+    <strong>Volumen final:</strong> ${resumen.volumenFinal.toFixed(2)} m³<br>
+    <strong>Nivel mínimo:</strong> ${resumen.nivelMinimo.toFixed(2)} msnm<br>
+    <strong>Nivel máximo:</strong> ${resumen.nivelMaximo.toFixed(2)} msnm<br>
+    <strong>Estado:</strong> <span class="${estadoClase}">${estadoTexto}</span><br><br>
+
+    <strong>Promedio de precipitación:</strong> ${promedios.promedioPrecipitacion.toFixed(2)} mm/h<br>
+    <strong>Promedio de temperatura:</strong> ${promedios.promedioTemperatura.toFixed(2)} °C<br>
+    <strong>Promedio de humedad:</strong> ${promedios.promedioHumedad.toFixed(2)} %<br>
+    <strong>Promedio de caudal de entrada:</strong> ${promedios.promedioCaudalEntrada.toFixed(2)} m³/s<br>
   `;
 }
 
 async function renderizarTodoDesdeClima(data) {
+  climaActualGlobal = data; // NUEVO
+
   const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
 
   while (lluvias.length < HORAS_SIMULACION) {
@@ -507,6 +597,9 @@ async function renderizarTodoDesdeClima(data) {
 
   const { nivelInicial, caudalBase } = obtenerInputs();
   const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+
+  ultimoResultadoSimulacion = { resultados, resumen }; // NUEVO
+
   llenarTabla(resultados);
   mostrarResumen(resumen);
 }
@@ -526,6 +619,9 @@ async function actualizarTodoAutomaticamente() {
     if (!inputsValidos()) return;
     const { nivelInicial, caudalBase } = obtenerInputs();
     const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+
+    ultimoResultadoSimulacion = { resultados, resumen }; // NUEVO
+
     llenarTabla(resultados);
     mostrarResumen(resumen);
   }
@@ -556,6 +652,9 @@ async function calcularManual() {
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
     const lluvias = Array(HORAS_SIMULACION).fill(0);
     const { resultados, resumen } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
+
+    ultimoResultadoSimulacion = { resultados, resumen }; // NUEVO
+
     llenarTabla(resultados);
     mostrarResumen(resumen);
   } finally {
@@ -566,10 +665,13 @@ async function calcularManual() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const btn = document.getElementById("btnCalcular");
-  const nivelInput = document.getElementById("nivelInicial");
-  const caudalInput = document.getElementById("caudalBase");
+  const btnResumenDia = document.getElementById("btnResumenDia"); // NUEVO
 
   btn.addEventListener("click", calcularManual);
+
+  if (btnResumenDia) {
+    btnResumenDia.addEventListener("click", mostrarResumenDelDia); // NUEVO
+  }
 
   await actualizarTodoAutomaticamente();
   setInterval(actualizarTodoAutomaticamente, INTERVALO_ACTUALIZACION_MS);
