@@ -1,5 +1,5 @@
-const LATITUD = 15.22553;
-const LONGITUD = -90.11064;
+const LATITUD = 15.14375;
+const LONGITUD = -90.07007;
 
 const TABLA_VOL_NIVEL = [
   [0.00, 770.00],
