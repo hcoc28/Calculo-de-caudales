@@ -23,12 +23,12 @@ const TABLA_VOL_NIVEL = [
 
 const NIVEL_MINIMO_OPERATIVO = 773.50;
 const NIVEL_REBALSE = 777.50;
-const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
+const HORAS_OBLIGATORIAS = [18, 19, 20, 21]; // 18-19, 19-20, 20-21, 21-22
 const HORAS_SIMULACION = 24;
 const INTERVALO_ACTUALIZACION_MS = 10 * 60 * 1000;
 
 const POTENCIA_UNA_UNIDAD = 4.2;
-const POTENCIA_DOS_UNIDADES = 8.2;
+const POTENCIA_DOS_UNIDADES = 8.3;
 
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
@@ -319,6 +319,16 @@ function evaluarEscenario(acumuladoAnterior, qIngreso, potencia) {
   };
 }
 
+function promedioRango(arr, inicio, cantidad) {
+  let suma = 0;
+  let n = 0;
+  for (let i = inicio; i < inicio + cantidad && i < arr.length; i++) {
+    suma += arr[i];
+    n++;
+  }
+  return n > 0 ? suma / n : 0;
+}
+
 function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
   const volumenInicial = nivelAVolumen(nivelInicial);
   const caudalesEntrada = generarCaudales24h(caudalBase, lluvias);
@@ -329,7 +339,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
   let horasProducidas = 0;
 
   let enProduccion = false;
-  let modoProduccion = 0; // 0 apagada, 1 una unidad, 2 dos unidades
+  let modoProduccion = 0; // 0 = apagada, 1 = una unidad, 2 = dos unidades
 
   const resultados = [];
 
@@ -347,50 +357,90 @@ function simularDiaConPotencia(nivelInicial, caudalBase, potencia, lluvias) {
     let operacionElegida = escenarioApagado;
     let estado = "Apagada";
 
-    if (!enProduccion) {
-      if (nivelActual >= NIVEL_REBALSE || esHoraObligatoria) {
-        enProduccion = true;
-        modoProduccion = 1;
+    const prom3h = promedioRango(caudalesEntrada, h, 3);
+    const prom6h = promedioRango(caudalesEntrada, h, 6);
+    const faltanParaObligatoria = h < HORAS_OBLIGATORIAS[0] ? (HORAS_OBLIGATORIAS[0] - h) : 999;
+
+    // 1) Horas obligatorias: SIEMPRE dos unidades a máxima potencia
+    if (esHoraObligatoria) {
+      enProduccion = true;
+      modoProduccion = 2;
+
+      if (escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+        operacionElegida = escenarioDos;
+        estado = "Encendida obligatoria (2 unidades)";
+      } else {
+        operacionElegida = escenarioDos;
+        estado = "No viable obligatoria (2 unidades)";
+        produccionValida = false;
       }
-    }
+    } else {
+      // 2) Si todavía no está produciendo, decidir con qué arrancar
+      if (!enProduccion) {
+        const cercaRebalse = nivelActual >= (NIVEL_REBALSE - 0.08);
+        const muyAlto = nivelActual >= NIVEL_REBALSE;
+        const ingresoAlto = qIngreso >= prom6h;
+        const ingresoMuyAlto = qIngreso >= prom6h * 1.05;
+        const subidaEsperada = prom3h >= prom6h;
 
-    if (enProduccion) {
-      if (modoProduccion === 1) {
-        const debeSubirADos =
-          nivelActual >= NIVEL_REBALSE ||
-          escenarioUna.nivelFinal >= NIVEL_REBALSE ||
-          (nivelActual >= NIVEL_REBALSE - 0.10 && qIngreso >= POTENCIA_UNA_UNIDAD);
+        const debeArrancar =
+          muyAlto ||
+          (cercaRebalse && (ingresoAlto || subidaEsperada)) ||
+          (faltanParaObligatoria <= 2 && nivelActual >= (NIVEL_REBALSE - 0.20));
 
-        if (debeSubirADos && escenarioDos.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
-          modoProduccion = 2;
+        if (debeArrancar) {
+          enProduccion = true;
+
+          const arrancarConDos =
+            muyAlto ||
+            ingresoMuyAlto ||
+            (faltanParaObligatoria <= 1) ||
+            escenarioUna.nivelFinal >= NIVEL_REBALSE;
+
+          if (arrancarConDos && escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+            modoProduccion = 2;
+          } else if (escenarioUna.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+            modoProduccion = 1;
+          } else if (escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+            modoProduccion = 2;
+          } else {
+            enProduccion = false;
+            modoProduccion = 0;
+          }
         }
       }
 
-      if (modoProduccion === 2) {
-        if (escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
-          operacionElegida = escenarioDos;
-          estado = "Encendida continua (2 unidades)";
-        } else {
-          if (esHoraObligatoria) {
+      // 3) Si ya está produciendo, mantener continuidad
+      if (enProduccion) {
+        // Si arrancó con una unidad, evaluar subida a dos
+        if (modoProduccion === 1) {
+          const debeSubirADos =
+            nivelActual >= NIVEL_REBALSE ||
+            escenarioUna.nivelFinal >= (NIVEL_REBALSE - 0.02) ||
+            qIngreso >= prom6h ||
+            faltanParaObligatoria <= 1;
+
+          if (debeSubirADos && escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
+            modoProduccion = 2;
+          }
+        }
+
+        // 4) Aplicar operación según modo
+        if (modoProduccion === 2) {
+          // Si con dos unidades ya bajaría del mínimo, apagar solo antes de llegar al límite
+          if (escenarioDos.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
             operacionElegida = escenarioDos;
-            estado = "No viable (2 unidades)";
-            produccionValida = false;
+            estado = "Encendida continua (2 unidades)";
           } else {
             enProduccion = false;
             modoProduccion = 0;
             operacionElegida = escenarioApagado;
             estado = "Apagada";
           }
-        }
-      } else if (modoProduccion === 1) {
-        if (escenarioUna.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
-          operacionElegida = escenarioUna;
-          estado = "Encendida continua (1 unidad)";
-        } else {
-          if (esHoraObligatoria) {
+        } else if (modoProduccion === 1) {
+          if (escenarioUna.nivelFinal > NIVEL_MINIMO_OPERATIVO) {
             operacionElegida = escenarioUna;
-            estado = "No viable (1 unidad)";
-            produccionValida = false;
+            estado = "Encendida continua (1 unidad)";
           } else {
             enProduccion = false;
             modoProduccion = 0;
