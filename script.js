@@ -1,7 +1,7 @@
 const LATITUD = 15.14375;
 const LONGITUD = -90.07007;
 
-const TABLA_VOL_NIVEL = [
+const Tabla_volumen = [
   [0.00, 770.00],
   [2297.00, 770.50],
   [5167.70, 771.00],
@@ -21,17 +21,17 @@ const TABLA_VOL_NIVEL = [
   [104784.00, 778.00]
 ];
 
-const NIVEL_MINIMO_OPERATIVO = 773.50;
-const NIVEL_REBALSE_OPERATIVO = 777.50;
-const NIVEL_REBALSE_REAL = 777.75;
-const NIVEL_MAXIMO_EMBALSE = 778.00;
+const Nivel_minimo = 773.50;
+const Nivel_inicio = 777.50;
+const Nivel_rebalse = 777.75;
+const Nivel_embalse = 778.00;
 
-const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
-const HORAS_SIMULACION = 24;
-const INTERVALO_ACTUALIZACION_MS = 10 * 60 * 1000;
+const Horas_obligatorias = [18, 19, 20, 21];
+const Simulacion = 24;
+const Intervalo_actualizacion = 10 * 60 * 1000;
 
-const POTENCIA_MINIMA_GENERACION = 4.2; // 1 unidad
-const POTENCIA_MAXIMA_GENERACION = 8.2; // 2 unidades
+const Potencia_una_unidad = 4.2; // 1 unidad
+const Potencia_dos_unidades = 8.2; // 2 unidades
 
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
@@ -195,11 +195,11 @@ function mostrarPronostico24h(data) {
 
   contenedor.innerHTML = "";
 
-  const horas = data.hourly.time.slice(0, HORAS_SIMULACION);
-  const temps = data.hourly.temperature_2m.slice(0, HORAS_SIMULACION);
-  const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
-  const codes = data.hourly.weather_code.slice(0, HORAS_SIMULACION);
-  const isDay = data.hourly.is_day.slice(0, HORAS_SIMULACION);
+  const horas = data.hourly.time.slice(0, Simulacion);
+  const temps = data.hourly.temperature_2m.slice(0, Simulacion);
+  const lluvias = data.hourly.precipitation.slice(0, Simulacion);
+  const codes = data.hourly.weather_code.slice(0, Simulacion);
+  const isDay = data.hourly.is_day.slice(0, Simulacion);
 
   for (let i = 0; i < horas.length; i++) {
     const dt = new Date(horas[i]);
@@ -246,14 +246,14 @@ function calcularFactorClima(lluvia) {
 }
 
 function nivelAVolumen(nivel) {
-  if (nivel <= TABLA_VOL_NIVEL[0][1]) return TABLA_VOL_NIVEL[0][0];
-  if (nivel >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1]) {
-    return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
+  if (nivel <= Tabla_volumen[0][1]) return Tabla_volumen[0][0];
+  if (nivel >= Tabla_volumen[Tabla_volumen.length - 1][1]) {
+    return Tabla_volumen[Tabla_volumen.length - 1][0];
   }
 
-  for (let i = 0; i < TABLA_VOL_NIVEL.length - 1; i++) {
-    const [v1, h1] = TABLA_VOL_NIVEL[i];
-    const [v2, h2] = TABLA_VOL_NIVEL[i + 1];
+  for (let i = 0; i < Tabla_volumen.length - 1; i++) {
+    const [v1, h1] = Tabla_volumen[i];
+    const [v2, h2] = Tabla_volumen[i + 1];
 
     if (nivel >= h1 && nivel <= h2) {
       return round2(v1 + ((nivel - h1) / (h2 - h1)) * (v2 - v1));
@@ -264,14 +264,14 @@ function nivelAVolumen(nivel) {
 }
 
 function volumenANivel(volumen) {
-  if (volumen <= TABLA_VOL_NIVEL[0][0]) return TABLA_VOL_NIVEL[0][1];
-  if (volumen >= TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0]) {
-    return TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][1];
+  if (volumen <= Tabla_volumen[0][0]) return Tabla_volumen[0][1];
+  if (volumen >= Tabla_volumen[Tabla_volumen.length - 1][0]) {
+    return Tabla_volumen[Tabla_volumen.length - 1][1];
   }
 
-  for (let i = 0; i < TABLA_VOL_NIVEL.length - 1; i++) {
-    const [v1, h1] = TABLA_VOL_NIVEL[i];
-    const [v2, h2] = TABLA_VOL_NIVEL[i + 1];
+  for (let i = 0; i < Tabla_volumen.length - 1; i++) {
+    const [v1, h1] = Tabla_volumen[i];
+    const [v2, h2] = Tabla_volumen[i + 1];
 
     if (volumen >= v1 && volumen <= v2) {
       return round2(h1 + ((volumen - v1) / (v2 - v1)) * (h2 - h1));
@@ -295,7 +295,7 @@ function generarCaudales24h(caudalBase, lluvias) {
 
   const resultado = [];
 
-  for (let h = 0; h < HORAS_SIMULACION; h++) {
+  for (let h = 0; h < Simulacion; h++) {
     const patronHora = PATRON_ENTRADA_REAL[h];
     const lluvia = lluvias[h - 2] ?? 0;
     const factorClima = calcularFactorClima(lluvia);
@@ -308,8 +308,8 @@ function generarCaudales24h(caudalBase, lluvias) {
 }
 
 function limitarVolumen(volumen) {
-  const min = TABLA_VOL_NIVEL[0][0];
-  const max = TABLA_VOL_NIVEL[TABLA_VOL_NIVEL.length - 1][0];
+  const min = Tabla_volumen[0][0];
+  const max = Tabla_volumen[Tabla_volumen.length - 1][0];
   return Math.max(min, Math.min(max, round2(volumen)));
 }
 
@@ -335,19 +335,19 @@ function evaluarEscenario(acumuladoAnterior, qIngreso, potencia) {
 function reservaBloqueObligatorioViable(horaActual, volumenInicial, caudalesEntrada) {
   let volumen = volumenInicial;
 
-  for (let h = horaActual + 1; h < HORAS_SIMULACION; h++) {
+  for (let h = horaActual + 1; h < Simulacion; h++) {
     const qIngreso = caudalesEntrada[h];
-    const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
+    const esHoraObligatoria = Horas_obligatorias.includes(h);
 
     let potencia = 0;
     if (esHoraObligatoria) {
-      potencia = POTENCIA_MAXIMA_GENERACION;
+      potencia = Potencia_dos_unidades;
     }
 
     const escenario = evaluarEscenario(volumen, qIngreso, potencia);
     volumen = escenario.volumenFinal;
 
-    if (escenario.nivelFinal < NIVEL_MINIMO_OPERATIVO) {
+    if (escenario.nivelFinal < Nivel_minimo) {
       return false;
     }
   }
@@ -369,16 +369,16 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
 
   const resultados = [];
 
-  for (let h = 0; h < HORAS_SIMULACION; h++) {
+  for (let h = 0; h < Simulacion; h++) {
     const horaDesde = h;
     const horaHasta = (h + 1) % 24;
     const acumuladoAnterior = volumenAcumulado;
     const qIngreso = caudalesEntrada[h];
-    const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
+    const esHoraObligatoria = Horas_obligatorias.includes(h);
 
     const escenario0 = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
-    const escenario1 = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_MINIMA_GENERACION);
-    const escenario2 = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_MAXIMA_GENERACION);
+    const escenario1 = evaluarEscenario(acumuladoAnterior, qIngreso, Potencia_una_unidad);
+    const escenario2 = evaluarEscenario(acumuladoAnterior, qIngreso, Potencia_dos_unidades);
 
     let elegido = escenario0;
     let estado = "Apagada";
@@ -386,7 +386,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
     if (esHoraObligatoria) {
       modoProduccion = 2;
 
-      if (escenario2.nivelFinal < NIVEL_MINIMO_OPERATIVO) {
+      if (escenario2.nivelFinal < Nivel_minimo) {
         elegido = escenario0;
         estado = "No viable - Apagada";
         produccionValida = false;
@@ -399,12 +399,12 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
       if (modoProduccion === 2) {
         const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
 
-        if (escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO && bloqueOkConDos) {
+        if (escenario2.nivelFinal > Nivel_minimo && bloqueOkConDos) {
           elegido = escenario2;
           estado = "Encendida continua (2 unidades)";
           horasProducidas++;
         } else {
-          if (escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+          if (escenario1.nivelFinal > Nivel_minimo) {
             modoProduccion = 1;
             elegido = escenario1;
             estado = "Encendida continua (1 unidad)";
@@ -416,17 +416,17 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
           }
         }
       } else if (modoProduccion === 1) {
-        const faltanParaObligatoria = HORAS_OBLIGATORIAS[0] - h;
+        const faltanParaObligatoria = Horas_obligatorias[0] - h;
         const subirADos =
-          nivelActual >= NIVEL_REBALSE_OPERATIVO ||
-          (faltanParaObligatoria <= 1 && escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO);
+          nivelActual >= Nivel_inicio ||
+          (faltanParaObligatoria <= 1 && escenario2.nivelFinal >= Nivel_minimo);
 
-        if (subirADos && escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+        if (subirADos && escenario2.nivelFinal >= Nivel_minimo) {
           modoProduccion = 2;
           elegido = escenario2;
           estado = "Encendida continua (2 unidades)";
           horasProducidas++;
-        } else if (escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+        } else if (escenario1.nivelFinal >= Nivel_minimo) {
           elegido = escenario1;
           estado = "Encendida continua (1 unidad)";
           horasProducidas++;
@@ -440,8 +440,8 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
         const bloqueOkConUna = reservaBloqueObligatorioViable(h, escenario1.volumenFinal, caudalesEntrada);
 
         if (
-          nivelActual >= NIVEL_REBALSE_REAL &&
-          escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO &&
+          nivelActual >= Nivel_rebalse &&
+          escenario2.nivelFinal >= Nivel_minimo &&
           bloqueOkConDos
         ) {
           modoProduccion = 2;
@@ -449,8 +449,8 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
           estado = "Encendida continua (2 unidades)";
           horasProducidas++;
         } else if (
-          nivelActual >= NIVEL_REBALSE_OPERATIVO &&
-          escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO &&
+          nivelActual >= Nivel_inicio &&
+          escenario1.nivelFinal >= Nivel_minimo &&
           bloqueOkConUna
         ) {
           modoProduccion = 1;
@@ -491,7 +491,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
       volumenFinal: resultados[resultados.length - 1].acumulado,
       nivelMinimo: Math.min(...resultados.map(r => r.nivel)),
       nivelMaximo: Math.max(...resultados.map(r => r.nivel)),
-      potenciaElegida: POTENCIA_MAXIMA_GENERACION,
+      potenciaElegida: Potencia_dos_unidades,
       horasProduccion: horasProducidas,
       produccionValida
     }
@@ -589,13 +589,13 @@ function recalcularDesdeFila(inicio) {
     const escenario = evaluarEscenario(acumuladoAnterior, qIngreso, potencia);
 
     let estado = "Apagada";
-    if (HORAS_OBLIGATORIAS.includes(fila.de) && potencia === 0) {
+    if (Horas_obligatorias.includes(fila.de) && potencia === 0) {
       estado = "No viable";
-    } else if (HORAS_OBLIGATORIAS.includes(fila.de) && potencia > 0) {
+    } else if (Horas_obligatorias.includes(fila.de) && potencia > 0) {
       estado = "Encendida obligatoria";
-    } else if (potencia >= POTENCIA_MAXIMA_GENERACION) {
+    } else if (potencia >= Potencia_dos_unidades) {
       estado = "Encendida continua (2 unidades)";
-    } else if (potencia >= POTENCIA_MINIMA_GENERACION) {
+    } else if (potencia >= Potencia_una_unidad) {
       estado = "Encendida continua (1 unidad)";
     }
 
@@ -615,9 +615,9 @@ function recalcularDesdeFila(inicio) {
 }
 
 async function renderizarTodoDesdeClima(data) {
-  const lluvias = data.hourly.precipitation.slice(0, HORAS_SIMULACION);
+  const lluvias = data.hourly.precipitation.slice(0, Simulacion);
 
-  while (lluvias.length < HORAS_SIMULACION) {
+  while (lluvias.length < Simulacion) {
     lluvias.push(0);
   }
 
@@ -646,7 +646,7 @@ async function actualizarTodoAutomaticamente() {
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
     setUltimaActualizacion();
 
-    const lluvias = Array(HORAS_SIMULACION).fill(0);
+    const lluvias = Array(Simulacion).fill(0);
 
     if (!inputsValidos()) return;
     const { nivelInicial, caudalBase } = obtenerInputs();
@@ -682,7 +682,7 @@ async function calcularManual() {
     console.error(error);
     setEstadoClima("Clima: no disponible, simulando sin lluvia");
 
-    const lluvias = Array(HORAS_SIMULACION).fill(0);
+    const lluvias = Array(Simulacion).fill(0);
     const { resultados } = simuladorEmbalse(nivelInicial, caudalBase, lluvias);
     llenarTabla(resultados);
   } finally {
@@ -701,5 +701,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   await actualizarTodoAutomaticamente();
-  setInterval(actualizarTodoAutomaticamente, INTERVALO_ACTUALIZACION_MS);
+  setInterval(actualizarTodoAutomaticamente, Intervalo_actualizacion);
 });
