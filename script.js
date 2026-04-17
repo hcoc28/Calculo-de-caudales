@@ -25,13 +25,13 @@ const NIVEL_MINIMO_OPERATIVO = 773.50;
 const NIVEL_REBALSE_OPERATIVO = 777.50;
 const NIVEL_REBALSE_REAL = 777.75;
 const NIVEL_MAXIMO_EMBALSE = 778.00;
+
 const HORAS_OBLIGATORIAS = [18, 19, 20, 21];
 const HORAS_SIMULACION = 24;
 const INTERVALO_ACTUALIZACION_MS = 10 * 60 * 1000;
 
-const POTENCIA_MINIMA_GENERACION = 4.2;
-const POTENCIA_MAXIMA_GENERACION = 8.2;
-const PASO_POTENCIA = 0.1;
+const POTENCIA_MINIMA_GENERACION = 4.2; // 1 unidad
+const POTENCIA_MAXIMA_GENERACION = 8.2; // 2 unidades
 
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
@@ -156,7 +156,13 @@ function iconoWeather(code, isDay = true) {
 }
 
 async function obtenerDatosClima() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUD}&longitude=${LONGITUD}&timezone=auto&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,precipitation,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&forecast_days=1`;
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${LATITUD}&longitude=${LONGITUD}` +
+    `&timezone=auto` +
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m` +
+    `&hourly=temperature_2m,precipitation,weather_code,is_day` +
+    `&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset` +
+    `&forecast_days=1`;
 
   const resp = await fetch(url);
   if (!resp.ok) {
@@ -253,6 +259,7 @@ function nivelAVolumen(nivel) {
       return round2(v1 + ((nivel - h1) / (h2 - h1)) * (v2 - v1));
     }
   }
+
   return 0;
 }
 
@@ -270,6 +277,7 @@ function volumenANivel(volumen) {
       return round2(h1 + ((volumen - v1) / (v2 - v1)) * (h2 - h1));
     }
   }
+
   return 770;
 }
 
@@ -356,6 +364,9 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
   let produccionValida = true;
   let horasProducidas = 0;
 
+  // 0 = apagada, 1 = una unidad, 2 = dos unidades
+  let modoProduccion = 0;
+
   const resultados = [];
 
   for (let h = 0; h < HORAS_SIMULACION; h++) {
@@ -365,70 +376,106 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
     const qIngreso = caudalesEntrada[h];
     const esHoraObligatoria = HORAS_OBLIGATORIAS.includes(h);
 
-    let mejorEscenario = null;
+    const escenario0 = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
+    const escenario1 = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_MINIMA_GENERACION);
+    const escenario2 = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_MAXIMA_GENERACION);
+
+    let elegido = escenario0;
     let estado = "Apagada";
 
-    // Horas obligatorias: fijo 8.2
     if (esHoraObligatoria) {
-      const escenario = evaluarEscenario(acumuladoAnterior, qIngreso, POTENCIA_MAXIMA_GENERACION);
+      modoProduccion = 2;
 
-      if (escenario.nivelFinal < NIVEL_MINIMO_OPERATIVO) {
-        mejorEscenario = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
+      if (escenario2.nivelFinal < NIVEL_MINIMO_OPERATIVO) {
+        elegido = escenario0;
         estado = "No viable - Apagada";
         produccionValida = false;
       } else {
-        mejorEscenario = escenario;
-        estado = "Encendida obligatoria (8.2 MW)";
+        elegido = escenario2;
+        estado = "Encendida obligatoria (2 unidades)";
         horasProducidas++;
       }
     } else {
-      let elegido = null;
+      if (modoProduccion === 2) {
+        const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
 
-      for (let p = POTENCIA_MAXIMA_GENERACION; p >= 0; p = round2(p - PASO_POTENCIA)) {
-        const escenario = evaluarEscenario(acumuladoAnterior, qIngreso, p);
-
-        if (escenario.nivelFinal < NIVEL_MINIMO_OPERATIVO) continue;
-
-        const viableBloque = reservaBloqueObligatorioViable(h, escenario.volumenFinal, caudalesEntrada);
-        if (!viableBloque) continue;
-
-        elegido = escenario;
-        break;
-      }
-
-      if (elegido) {
-        mejorEscenario = elegido;
-
-        if (elegido.potencia === 0) {
-          estado = "Apagada";
-        } else if (elegido.potencia >= POTENCIA_MAXIMA_GENERACION) {
-          estado = "Encendida continua (8.2 MW)";
-          horasProducidas++;
-        } else if (elegido.potencia >= POTENCIA_MINIMA_GENERACION) {
-          estado = `Encendida continua (${elegido.potencia.toFixed(1)} MW)`;
+        if (escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO && bloqueOkConDos) {
+          elegido = escenario2;
+          estado = "Encendida continua (2 unidades)";
           horasProducidas++;
         } else {
-          estado = `Encendida continua (${elegido.potencia.toFixed(1)} MW)`;
+          if (escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+            modoProduccion = 1;
+            elegido = escenario1;
+            estado = "Encendida continua (1 unidad)";
+            horasProducidas++;
+          } else {
+            modoProduccion = 0;
+            elegido = escenario0;
+            estado = "Apagada";
+          }
+        }
+      } else if (modoProduccion === 1) {
+        const faltanParaObligatoria = HORAS_OBLIGATORIAS[0] - h;
+        const subirADos =
+          nivelActual >= NIVEL_REBALSE_OPERATIVO ||
+          (faltanParaObligatoria <= 1 && escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO);
+
+        if (subirADos && escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+          modoProduccion = 2;
+          elegido = escenario2;
+          estado = "Encendida continua (2 unidades)";
           horasProducidas++;
+        } else if (escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO) {
+          elegido = escenario1;
+          estado = "Encendida continua (1 unidad)";
+          horasProducidas++;
+        } else {
+          modoProduccion = 0;
+          elegido = escenario0;
+          estado = "Apagada";
         }
       } else {
-        mejorEscenario = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
-        estado = "Apagada";
+        const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
+        const bloqueOkConUna = reservaBloqueObligatorioViable(h, escenario1.volumenFinal, caudalesEntrada);
+
+        if (
+          nivelActual >= NIVEL_REBALSE_REAL &&
+          escenario2.nivelFinal >= NIVEL_MINIMO_OPERATIVO &&
+          bloqueOkConDos
+        ) {
+          modoProduccion = 2;
+          elegido = escenario2;
+          estado = "Encendida continua (2 unidades)";
+          horasProducidas++;
+        } else if (
+          nivelActual >= NIVEL_REBALSE_OPERATIVO &&
+          escenario1.nivelFinal >= NIVEL_MINIMO_OPERATIVO &&
+          bloqueOkConUna
+        ) {
+          modoProduccion = 1;
+          elegido = escenario1;
+          estado = "Encendida continua (1 unidad)";
+          horasProducidas++;
+        } else {
+          elegido = escenario0;
+          estado = "Apagada";
+        }
       }
     }
 
-    volumenAcumulado = mejorEscenario.volumenFinal;
-    nivelActual = mejorEscenario.nivelFinal;
+    volumenAcumulado = elegido.volumenFinal;
+    nivelActual = elegido.nivelFinal;
 
     resultados.push({
       de: horaDesde,
       a: horaHasta,
-      potencia: mejorEscenario.potencia,
-      caudalSalida: mejorEscenario.caudalSalida,
-      volumenTurbinado: mejorEscenario.volumenTurbinado,
+      potencia: elegido.potencia,
+      caudalSalida: elegido.caudalSalida,
+      volumenTurbinado: elegido.volumenTurbinado,
       caudalIngreso: qIngreso,
-      volumenPorHora: mejorEscenario.volumenPorHora,
-      diferencia: mejorEscenario.diferencia,
+      volumenPorHora: elegido.volumenPorHora,
+      diferencia: elegido.diferencia,
       acumulado: volumenAcumulado,
       nivel: nivelActual,
       estado
@@ -546,8 +593,10 @@ function recalcularDesdeFila(inicio) {
       estado = "No viable";
     } else if (HORAS_OBLIGATORIAS.includes(fila.de) && potencia > 0) {
       estado = "Encendida obligatoria";
-    } else if (potencia > 0) {
-      estado = `Encendida continua (${potencia.toFixed(1)} MW)`;
+    } else if (potencia >= POTENCIA_MAXIMA_GENERACION) {
+      estado = "Encendida continua (2 unidades)";
+    } else if (potencia >= POTENCIA_MINIMA_GENERACION) {
+      estado = "Encendida continua (1 unidad)";
     }
 
     resultadosActuales[i] = {
