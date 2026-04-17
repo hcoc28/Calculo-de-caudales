@@ -30,8 +30,16 @@ const Horas_obligatorias = [18, 19, 20, 21];
 const Simulacion = 24;
 const Intervalo_actualizacion = 10 * 60 * 1000;
 
-const Potencia_una_unidad = 4.2; // 1 unidad
-const Potencia_dos_unidades = 8.2; // 2 unidades
+const Potencia_una_unidad = 4.2;
+const Potencia_dos_unidades = 8.2;
+
+const HORAS_MIN_ANTES_DE_SUBIR_A_DOS = 2;
+const HORAS_MIN_EN_UNA_UNIDAD = 2;
+const HORAS_MIN_EN_DOS_UNIDADES = 2;
+
+const UMBRAL_INGRESO_ALTO = 1.80; // m3/s
+const MARGEN_NIVEL_POST_OBLIGATORIO = 0.20; // msnm
+const HORAS_PROYECCION_INGRESO = 3;
 
 const PATRON_ENTRADA_REAL = [
   1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
@@ -332,6 +340,26 @@ function evaluarEscenario(acumuladoAnterior, qIngreso, potencia) {
   };
 }
 
+function promedioIngresoProyectado(caudalesEntrada, horaActual, cantidadHoras = HORAS_PROYECCION_INGRESO) {
+  let suma = 0;
+  let conteo = 0;
+
+  for (let i = horaActual; i < Math.min(horaActual + cantidadHoras, caudalesEntrada.length); i++) {
+    suma += caudalesEntrada[i];
+    conteo++;
+  }
+
+  return conteo > 0 ? round2(suma / conteo) : 0;
+}
+
+function yaPasaronHorasObligatorias(hora) {
+  return hora > Horas_obligatorias[Horas_obligatorias.length - 1];
+}
+
+function faltaPocoParaHorasObligatorias(hora) {
+  return hora < Horas_obligatorias[0] && (Horas_obligatorias[0] - hora) <= 1;
+}
+
 function reservaBloqueObligatorioViable(horaActual, volumenInicial, caudalesEntrada) {
   let volumen = volumenInicial;
 
@@ -366,6 +394,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
 
   // 0 = apagada, 1 = una unidad, 2 = dos unidades
   let modoProduccion = 0;
+  let horasEnModoActual = 0;
 
   const resultados = [];
 
@@ -375,6 +404,7 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
     const acumuladoAnterior = volumenAcumulado;
     const qIngreso = caudalesEntrada[h];
     const esHoraObligatoria = Horas_obligatorias.includes(h);
+    const ingresoPromedioProyectado = promedioIngresoProyectado(caudalesEntrada, h, HORAS_PROYECCION_INGRESO);
 
     const escenario0 = evaluarEscenario(acumuladoAnterior, qIngreso, 0);
     const escenario1 = evaluarEscenario(acumuladoAnterior, qIngreso, Potencia_una_unidad);
@@ -382,90 +412,187 @@ function simularDiaConPotencia(nivelInicial, caudalBase, _potencia, lluvias) {
 
     let elegido = escenario0;
     let estado = "Apagada";
+    let nuevoModo = modoProduccion;
 
     if (esHoraObligatoria) {
-      modoProduccion = 2;
+      nuevoModo = 2;
 
       if (escenario2.nivelFinal < Nivel_minimo) {
         elegido = escenario0;
         estado = "No viable - Apagada";
         produccionValida = false;
+        nuevoModo = 0;
       } else {
         elegido = escenario2;
         estado = "Encendida obligatoria (2 unidades)";
         horasProducidas++;
       }
     } else {
-      if (modoProduccion === 2) {
-        const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
+      const despuesDeObligatorias = yaPasaronHorasObligatorias(h);
+      const cercaDeObligatorias = faltaPocoParaHorasObligatorias(h);
 
-        if (escenario2.nivelFinal > Nivel_minimo && bloqueOkConDos) {
-          elegido = escenario2;
-          estado = "Encendida continua (2 unidades)";
-          horasProducidas++;
+      if (despuesDeObligatorias) {
+        const nivelSeguroPost =
+          nivelActual >= (Nivel_minimo + MARGEN_NIVEL_POST_OBLIGATORIO);
+
+        const ingresoAlto =
+          ingresoPromedioProyectado >= UMBRAL_INGRESO_ALTO;
+
+        if (!nivelSeguroPost || !ingresoAlto) {
+          elegido = escenario0;
+          estado = "Apagada";
+          nuevoModo = 0;
         } else {
-          if (escenario1.nivelFinal > Nivel_minimo) {
-            modoProduccion = 1;
-            elegido = escenario1;
-            estado = "Encendida continua (1 unidad)";
-            horasProducidas++;
+          if (modoProduccion === 2) {
+            if (escenario2.nivelFinal >= Nivel_minimo) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProducidas++;
+            } else if (escenario1.nivelFinal >= Nivel_minimo && horasEnModoActual >= HORAS_MIN_EN_DOS_UNIDADES) {
+              elegido = escenario1;
+              estado = "Encendida continua (1 unidad)";
+              nuevoModo = 1;
+              horasProducidas++;
+            } else {
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
+            }
+          } else if (modoProduccion === 1) {
+            if (
+              horasEnModoActual >= HORAS_MIN_ANTES_DE_SUBIR_A_DOS &&
+              escenario2.nivelFinal >= Nivel_minimo &&
+              nivelActual >= Nivel_inicio
+            ) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProducidas++;
+            } else if (escenario1.nivelFinal >= Nivel_minimo) {
+              elegido = escenario1;
+              estado = "Encendida continua (1 unidad)";
+              nuevoModo = 1;
+              horasProducidas++;
+            } else {
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
+            }
           } else {
-            modoProduccion = 0;
-            elegido = escenario0;
-            estado = "Apagada";
+            if (escenario1.nivelFinal >= Nivel_minimo && nivelActual >= Nivel_inicio) {
+              elegido = escenario1;
+              estado = "Encendida continua (1 unidad)";
+              nuevoModo = 1;
+              horasProducidas++;
+            } else {
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
+            }
           }
         }
-      } else if (modoProduccion === 1) {
-        const faltanParaObligatoria = Horas_obligatorias[0] - h;
-        const subirADos =
-          nivelActual >= Nivel_inicio ||
-          (faltanParaObligatoria <= 1 && escenario2.nivelFinal >= Nivel_minimo);
-
-        if (subirADos && escenario2.nivelFinal >= Nivel_minimo) {
-          modoProduccion = 2;
-          elegido = escenario2;
-          estado = "Encendida continua (2 unidades)";
-          horasProducidas++;
-        } else if (escenario1.nivelFinal >= Nivel_minimo) {
-          elegido = escenario1;
-          estado = "Encendida continua (1 unidad)";
-          horasProducidas++;
-        } else {
-          modoProduccion = 0;
-          elegido = escenario0;
-          estado = "Apagada";
-        }
       } else {
-        const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
-        const bloqueOkConUna = reservaBloqueObligatorioViable(h, escenario1.volumenFinal, caudalesEntrada);
+        if (modoProduccion === 2) {
+          const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
 
-        if (
-          nivelActual >= Nivel_rebalse &&
-          escenario2.nivelFinal >= Nivel_minimo &&
-          bloqueOkConDos
-        ) {
-          modoProduccion = 2;
-          elegido = escenario2;
-          estado = "Encendida continua (2 unidades)";
-          horasProducidas++;
-        } else if (
-          nivelActual >= Nivel_inicio &&
-          escenario1.nivelFinal >= Nivel_minimo &&
-          bloqueOkConUna
-        ) {
-          modoProduccion = 1;
-          elegido = escenario1;
-          estado = "Encendida continua (1 unidad)";
-          horasProducidas++;
+          if (cercaDeObligatorias) {
+            if (escenario2.nivelFinal >= Nivel_minimo && bloqueOkConDos) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProducidas++;
+            } else {
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
+            }
+          } else {
+            if (escenario2.nivelFinal >= Nivel_minimo && bloqueOkConDos) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProducidas++;
+            } else if (
+              escenario1.nivelFinal >= Nivel_minimo &&
+              horasEnModoActual >= HORAS_MIN_EN_DOS_UNIDADES
+            ) {
+              elegido = escenario1;
+              estado = "Encendida continua (1 unidad)";
+              nuevoModo = 1;
+              horasProducidas++;
+            } else {
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
+            }
+          }
+        } else if (modoProduccion === 1) {
+          const faltanParaObligatoria = Horas_obligatorias[0] - h;
+
+          const puedeSubirADos =
+            horasEnModoActual >= HORAS_MIN_ANTES_DE_SUBIR_A_DOS &&
+            (
+              nivelActual >= Nivel_inicio ||
+              (faltanParaObligatoria <= 1 && escenario2.nivelFinal >= Nivel_minimo)
+            );
+
+          if (puedeSubirADos && escenario2.nivelFinal >= Nivel_minimo) {
+            elegido = escenario2;
+            estado = "Encendida continua (2 unidades)";
+            nuevoModo = 2;
+            horasProducidas++;
+          } else if (escenario1.nivelFinal >= Nivel_minimo) {
+            elegido = escenario1;
+            estado = "Encendida continua (1 unidad)";
+            nuevoModo = 1;
+            horasProducidas++;
+          } else {
+            elegido = escenario0;
+            estado = "Apagada";
+            nuevoModo = 0;
+          }
         } else {
-          elegido = escenario0;
-          estado = "Apagada";
+          const bloqueOkConDos = reservaBloqueObligatorioViable(h, escenario2.volumenFinal, caudalesEntrada);
+          const bloqueOkConUna = reservaBloqueObligatorioViable(h, escenario1.volumenFinal, caudalesEntrada);
+
+          if (
+            nivelActual >= Nivel_rebalse &&
+            escenario2.nivelFinal >= Nivel_minimo &&
+            bloqueOkConDos
+          ) {
+            elegido = escenario2;
+            estado = "Encendida continua (2 unidades)";
+            nuevoModo = 2;
+            horasProducidas++;
+          } else if (
+            nivelActual >= Nivel_inicio &&
+            escenario1.nivelFinal >= Nivel_minimo &&
+            bloqueOkConUna
+          ) {
+            elegido = escenario1;
+            estado = "Encendida continua (1 unidad)";
+            nuevoModo = 1;
+            horasProducidas++;
+          } else {
+            elegido = escenario0;
+            estado = "Apagada";
+            nuevoModo = 0;
+          }
         }
       }
     }
 
     volumenAcumulado = elegido.volumenFinal;
     nivelActual = elegido.nivelFinal;
+
+    if (nuevoModo === modoProduccion) {
+      horasEnModoActual++;
+    } else {
+      horasEnModoActual = 1;
+    }
+
+    modoProduccion = nuevoModo;
 
     resultados.push({
       de: horaDesde,
