@@ -1,0 +1,46 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Compilación y Build
+dist/
+build/
+*.build
+
+# Logs
+logs/
+*.log
+
+# Dependencias de Python (si se usa en backend)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Archivos de configuración local
+.env
+.env.local
+config.local.js
+
+# Temporales
+*.tmp
+*.bak
+
+# Cache
+.cache/
+*.cache

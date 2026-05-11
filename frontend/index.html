@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calculo de Caudales</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Cálculo de Caudales - Embalse El Cafetal</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div class="weather-bg"></div>
 
   <div class="app">
+    <!-- PANEL IZQUIERDO: CLIMA Y ENTRADA -->
     <aside class="panel panel-left">
+      <!-- Tarjeta principal de clima -->
       <div class="hero-card">
         <div class="hero-top">
           <div>
@@ -34,25 +36,42 @@
         </div>
       </div>
 
+      <!-- Formulario de cálculo -->
       <div class="card">
-        <h3 class="section-title">Cálculo de caudales</h3>
+        <h3 class="section-title">Cálculo de Caudales</h3>
 
-        <label for="nivelInicial">Nivel inicial (770 - 778 msnm)</label>
-        <input type="number" id="nivelInicial" step="0.01" placeholder="Ej. 775.80" value="">
+        <label for="nivelInicial">Nivel Inicial (770 - 778 msnm)</label>
+        <input 
+          type="number" 
+          id="nivelInicial" 
+          step="0.01" 
+          placeholder="Ej. 775.80" 
+          value=""
+          aria-label="Nivel inicial del embalse"
+        >
 
-        <label for="caudalBase">Caudal base de entrada (m³/s)</label>
-        <input type="number" id="caudalBase" step="0.01" placeholder="Ej. 2.00" value="">
+        <label for="caudalBase">Caudal Base de Entrada (m³/s)</label>
+        <input 
+          type="number" 
+          id="caudalBase" 
+          step="0.01" 
+          placeholder="Ej. 2.00" 
+          value=""
+          aria-label="Caudal base de entrada"
+        >
 
-        <button id="btnCalcular" type="button">Calcular</button>
+        <button id="btnCalcular" type="button" aria-label="Calcular simulación">Calcular</button>
       </div>
 
+      <!-- Pronóstico de 24 horas -->
       <div class="card">
         <div class="section-row">
-          <h3 class="section-title">Pronóstico de 24 horas</h3>
+          <h3 class="section-title">Pronóstico de 24 Horas</h3>
         </div>
         <div id="pronostico24h" class="hourly-strip"></div>
       </div>
 
+      <!-- Detalles de clima -->
       <div class="details-grid">
         <div class="detail-card">
           <div class="detail-title">Humedad</div>
@@ -61,7 +80,7 @@
         </div>
 
         <div class="detail-card">
-          <div class="detail-title">Sensación real</div>
+          <div class="detail-title">Sensación Real</div>
           <div id="detalleSensacion" class="detail-value">--°</div>
           <div class="detail-sub">Aparente</div>
         </div>
@@ -92,10 +111,11 @@
       </div>
     </aside>
 
+    <!-- PANEL DERECHO: RESULTADOS -->
     <main class="panel panel-right">
       <div class="card">
         <div class="section-row">
-          <h2 class="section-title">Resultados por hora</h2>
+          <h2 class="section-title">Resultados por Hora</h2>
         </div>
 
         <div class="table-container">
@@ -104,14 +124,14 @@
               <tr>
                 <th>De</th>
                 <th>A</th>
-                <th>Potencia</th>
-                <th>Caudal salida</th>
-                <th>Vol. turbinado</th>
-                <th>Caudal ingreso</th>
-                <th>Vol/hora</th>
-                <th>Diferencia</th>
-                <th>Acumulado</th>
-                <th>Nivel</th>
+                <th>Potencia (MW)</th>
+                <th>Caudal Salida (m³/s)</th>
+                <th>Vol. Turbinado (m³)</th>
+                <th>Caudal Ingreso (m³/s)</th>
+                <th>Vol/hora (m³)</th>
+                <th>Diferencia (m³)</th>
+                <th>Acumulado (m³)</th>
+                <th>Nivel (msnm)</th>
                 <th>Estado</th>
               </tr>
             </thead>
@@ -122,6 +142,7 @@
     </main>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Scripts modulares -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
