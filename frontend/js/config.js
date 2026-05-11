@@ -39,7 +39,12 @@ export const VOLUME_TABLE = [
 // NIVELES DE OPERACIÓN (msnm)
 // ============================================
 export const OPERATION_LEVELS = {
-  minimum: 773.50,      // Nivel mínimo permitido
+  minimum: 773.00export const INFLOW_PATTERNS = {
+  normal: [1.70, 1.55, ...],      // Patrón actual
+  dry: [0.80, 0.70, ...],         // Sequía
+  rainy: [3.20, 3.50, ...],       // Lluvia
+  storm: [5.00, 6.00, ...]        // Tormenta
+};,      // Nivel mínimo permitido
   start: 777.50,        // Nivel de inicio de operación
   overflow: 777.75,     // Nivel de rebalse
   maximum: 778.00       // Nivel máximo del embalse
