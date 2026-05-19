@@ -27,7 +27,7 @@ html, body {
   min-height: 100%;
 }
 
-.weather-bg {
+.fondo-clima {
   position: fixed;
   inset: 0;
   background:
@@ -38,7 +38,7 @@ html, body {
   z-index: 0;
 }
 
-.app {
+.aplicacion {
   position: relative;
   z-index: 1;
   display: flex;
@@ -51,18 +51,18 @@ html, body {
   min-width: 0;
 }
 
-.panel-left {
+.panel-izquierdo {
   width: 430px;
   flex-shrink: 0;
 }
 
-.panel-right {
+.panel-derecho {
   flex: 1;
 }
 
-.card,
-.hero-card,
-.detail-card {
+.tarjeta,
+.tarjeta-principal,
+.tarjeta-detalle {
   background: var(--panel);
   border: 1px solid var(--border);
   backdrop-filter: blur(16px);
@@ -71,70 +71,70 @@ html, body {
   box-shadow: var(--shadow);
 }
 
-.hero-card {
+.tarjeta-principal {
   padding: 18px;
   margin-bottom: 14px;
 }
 
-.hero-top {
+.encabezado-principal {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.hero-location {
+.ubicacion-principal {
   font-size: 20px;
   font-weight: 700;
 }
 
-.hero-date {
+.fecha-principal {
   margin-top: 6px;
   color: var(--muted);
   font-size: 13px;
 }
 
-.hero-icon {
+.icono-principal {
   font-size: 40px;
   line-height: 1;
 }
 
-.hero-main {
+.clima-principal {
   display: flex;
   align-items: flex-end;
   gap: 14px;
   margin-top: 12px;
 }
 
-.hero-temp {
+.temperatura-principal {
   font-size: 88px;
   line-height: 0.95;
   font-weight: 300;
 }
 
-.hero-side {
+.lateral-principal {
   padding-bottom: 10px;
 }
 
-.hero-desc {
+.descripcion-principal {
   font-size: 18px;
   font-weight: 600;
 }
 
-.hero-maxmin {
+.maxmin-principal {
   margin-top: 6px;
   color: var(--muted);
   font-size: 15px;
 }
 
-.hero-badges {
+.insignias-principales {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
 }
 
-.badge {
+.insignia {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -144,23 +144,23 @@ html, body {
   font-size: 13px;
 }
 
-.badge-soft {
+.insignia-suave {
   background: rgba(255,255,255,0.08);
   color: var(--muted);
 }
 
-.card {
+.tarjeta {
   padding: 16px;
   margin-bottom: 14px;
 }
 
-.section-row {
+.fila-seccion {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.section-title {
+.titulo-seccion {
   margin: 0 0 10px 0;
   font-size: 18px;
 }
@@ -207,7 +207,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.hourly-strip {
+.lista-horaria {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 86px;
@@ -216,7 +216,7 @@ button:disabled {
   padding-bottom: 4px;
 }
 
-.hourly-item {
+.elemento-horario {
   padding: 12px 10px;
   border-radius: 20px;
   background: rgba(255,255,255,0.05);
@@ -224,56 +224,100 @@ button:disabled {
   text-align: center;
 }
 
-.hourly-time {
+.hora-pronostico {
   color: var(--muted);
   font-size: 12px;
 }
 
-.hourly-icon {
+.icono-pronostico {
   font-size: 24px;
   margin: 8px 0;
 }
 
-.hourly-temp {
+.temperatura-pronostico {
   font-size: 20px;
   font-weight: 700;
 }
 
-.hourly-rain {
+.lluvia-pronostico {
   margin-top: 6px;
   color: #7ec7ff;
   font-size: 12px;
 }
 
-.details-grid {
+.cuadricula-detalles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.detail-card {
+.tarjeta-detalle {
   padding: 16px;
 }
 
-.detail-title {
+.titulo-detalle {
   color: var(--muted);
   font-size: 14px;
 }
 
-.detail-value {
+.valor-detalle {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
 }
 
-.detail-sub {
+.subtitulo-detalle {
   margin-top: 8px;
   color: var(--muted);
   font-size: 13px;
 }
 
-.table-container {
+.cuadricula-datos-reales {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.dato-real {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.etiqueta-dato-real {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.valor-dato-real {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.contenedor-tabla-pequena {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.tabla-pequena {
+  min-width: 520px;
+  font-size: 12px;
+}
+
+.tabla-pequena th,
+.tabla-pequena td {
+  padding: 9px 10px;
+}
+
+.contenedor-tabla {
   overflow-x: auto;
   border-radius: 18px;
   border: 1px solid var(--border);
@@ -307,45 +351,49 @@ tbody tr:hover {
 }
 
 @media (max-width: 1100px) {
-  .app {
+  .aplicacion {
     flex-direction: column;
   }
 
-  .panel-left {
+  .panel-izquierdo {
     width: 100%;
   }
 }
 
 @media (max-width: 640px) {
-  .app {
+  .aplicacion {
     padding: 10px;
     gap: 10px;
   }
 
-  .hero-card,
-  .card,
-  .detail-card {
+  .tarjeta-principal,
+  .tarjeta,
+  .tarjeta-detalle {
     border-radius: 22px;
   }
 
-  .hero-temp {
+  .temperatura-principal {
     font-size: 70px;
   }
 
-  .hero-desc {
+  .descripcion-principal {
     font-size: 16px;
   }
 
-  .details-grid {
+  .cuadricula-detalles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .detail-value {
+  .cuadricula-datos-reales {
+    grid-template-columns: 1fr;
+  }
+
+  .valor-detalle {
     font-size: 24px;
   }
 
-  .hourly-strip {
+  .lista-horaria {
     grid-auto-columns: 78px;
   }
 

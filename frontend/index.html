@@ -7,38 +7,38 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="weather-bg"></div>
+  <div class="fondo-clima"></div>
 
-  <div class="app">
+  <div class="aplicacion">
     <!-- PANEL IZQUIERDO: CLIMA Y ENTRADA -->
-    <aside class="panel panel-left">
+    <aside class="panel panel-izquierdo">
       <!-- Tarjeta principal de clima -->
-      <div class="hero-card">
-        <div class="hero-top">
+      <div class="tarjeta-principal">
+        <div class="encabezado-principal">
           <div>
-            <div class="hero-location">El Cafetal</div>
-            <div id="heroFecha" class="hero-date">Cargando fecha...</div>
+            <div class="ubicacion-principal">El Cafetal</div>
+            <div id="fechaPrincipal" class="fecha-principal">Cargando fecha...</div>
           </div>
-          <div id="heroIcon" class="hero-icon">☁️</div>
+          <div id="iconoPrincipal" class="icono-principal">☁️</div>
         </div>
 
-        <div class="hero-main">
-          <div id="heroTemp" class="hero-temp">--°</div>
-          <div class="hero-side">
-            <div id="heroDesc" class="hero-desc">Cargando...</div>
-            <div id="heroMaxMin" class="hero-maxmin">--° / --°</div>
+        <div class="clima-principal">
+          <div id="temperaturaPrincipal" class="temperatura-principal">--°</div>
+          <div class="lateral-principal">
+            <div id="descripcionPrincipal" class="descripcion-principal">Cargando...</div>
+            <div id="maxminPrincipal" class="maxmin-principal">--° / --°</div>
           </div>
         </div>
 
-        <div class="hero-badges">
-          <span id="estadoClima" class="badge">Clima:</span>
-          <span id="ultimaActualizacion" class="badge badge-soft">Última actualización: --</span>
+        <div class="insignias-principales">
+          <span id="estadoClima" class="insignia">Clima:</span>
+          <span id="ultimaActualizacion" class="insignia insignia-suave">Última actualización: --</span>
         </div>
       </div>
 
       <!-- Formulario de cálculo -->
-      <div class="card">
-        <h3 class="section-title">Cálculo de Caudales</h3>
+      <div class="tarjeta">
+        <h3 class="titulo-seccion">Cálculo de Caudales</h3>
 
         <label for="nivelInicial">Nivel Inicial (770 - 778 msnm)</label>
         <input 
@@ -50,75 +50,100 @@
           aria-label="Nivel inicial del embalse"
         >
 
-        <label for="caudalBase">Caudal Base de Entrada (m³/s)</label>
+        <label for="caudalBase">Caudal Base de Entrada (opcional)</label>
         <input 
           type="number" 
           id="caudalBase" 
           step="0.01" 
-          placeholder="Ej. 2.00" 
+          placeholder="Se usa QE de la base de datos" 
           value=""
-          aria-label="Caudal base de entrada"
+          aria-label="Caudal base de entrada opcional"
         >
 
-        <button id="btnCalcular" type="button" aria-label="Calcular simulación">Calcular</button>
+        <button id="botonCalcular" type="button" aria-label="Calcular simulación">Calcular</button>
+      </div>
+
+      <!-- Datos reales de producción y embalse -->
+      <div class="tarjeta">
+        <div class="fila-seccion">
+          <h3 class="titulo-seccion">Datos Reales del Embalse</h3>
+          <span id="estadoEmbalseApi" class="insignia insignia-suave">Cargando...</span>
+        </div>
+        <div id="embalseResumen" class="cuadricula-datos-reales"></div>
+        <div class="contenedor-tabla-pequena">
+          <table id="tablaEmbalseReal" class="tabla-pequena">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Nivel</th>
+                <th>QE</th>
+                <th>QS</th>
+                <th>QV</th>
+                <th>Potencia</th>
+                <th>Clima</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Pronóstico de 24 horas -->
-      <div class="card">
-        <div class="section-row">
-          <h3 class="section-title">Pronóstico de 24 Horas</h3>
+      <div class="tarjeta">
+        <div class="fila-seccion">
+          <h3 class="titulo-seccion">Pronóstico de 24 Horas</h3>
         </div>
-        <div id="pronostico24h" class="hourly-strip"></div>
+        <div id="pronostico24h" class="lista-horaria"></div>
       </div>
 
       <!-- Detalles de clima -->
-      <div class="details-grid">
-        <div class="detail-card">
-          <div class="detail-title">Humedad</div>
-          <div id="detalleHumedad" class="detail-value">--%</div>
-          <div class="detail-sub">Relativa</div>
+      <div class="cuadricula-detalles">
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Humedad</div>
+          <div id="detalleHumedad" class="valor-detalle">--%</div>
+          <div class="subtitulo-detalle">Relativa</div>
         </div>
 
-        <div class="detail-card">
-          <div class="detail-title">Sensación Real</div>
-          <div id="detalleSensacion" class="detail-value">--°</div>
-          <div class="detail-sub">Aparente</div>
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Sensación Real</div>
+          <div id="detalleSensacion" class="valor-detalle">--°</div>
+          <div class="subtitulo-detalle">Aparente</div>
         </div>
 
-        <div class="detail-card">
-          <div class="detail-title">Viento</div>
-          <div id="detalleViento" class="detail-value">-- km/h</div>
-          <div id="detalleDireccion" class="detail-sub">--</div>
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Viento</div>
+          <div id="detalleViento" class="valor-detalle">-- km/h</div>
+          <div id="detalleDireccion" class="subtitulo-detalle">--</div>
         </div>
 
-        <div class="detail-card">
-          <div class="detail-title">Presión</div>
-          <div id="detallePresion" class="detail-value">--</div>
-          <div class="detail-sub">mbar</div>
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Presión</div>
+          <div id="detallePresion" class="valor-detalle">--</div>
+          <div class="subtitulo-detalle">mbar</div>
         </div>
 
-        <div class="detail-card">
-          <div class="detail-title">Amanecer</div>
-          <div id="detalleAmanecer" class="detail-value">--:--</div>
-          <div class="detail-sub">Hoy</div>
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Amanecer</div>
+          <div id="detalleAmanecer" class="valor-detalle">--:--</div>
+          <div class="subtitulo-detalle">Hoy</div>
         </div>
 
-        <div class="detail-card">
-          <div class="detail-title">Atardecer</div>
-          <div id="detalleAtardecer" class="detail-value">--:--</div>
-          <div class="detail-sub">Hoy</div>
+        <div class="tarjeta-detalle">
+          <div class="titulo-detalle">Atardecer</div>
+          <div id="detalleAtardecer" class="valor-detalle">--:--</div>
+          <div class="subtitulo-detalle">Hoy</div>
         </div>
       </div>
     </aside>
 
     <!-- PANEL DERECHO: RESULTADOS -->
-    <main class="panel panel-right">
-      <div class="card">
-        <div class="section-row">
-          <h2 class="section-title">Resultados por Hora</h2>
+    <main class="panel panel-derecho">
+      <div class="tarjeta">
+        <div class="fila-seccion">
+          <h2 class="titulo-seccion">Resultados por Hora</h2>
         </div>
 
-        <div class="table-container">
+        <div class="contenedor-tabla">
           <table id="tablaResultados">
             <thead>
               <tr>
@@ -128,9 +153,6 @@
                 <th>Caudal Salida (m³/s)</th>
                 <th>Vol. Turbinado (m³)</th>
                 <th>Caudal Ingreso (m³/s)</th>
-                <th>Vol/hora (m³)</th>
-                <th>Diferencia (m³)</th>
-                <th>Acumulado (m³)</th>
                 <th>Nivel (msnm)</th>
                 <th>Estado</th>
               </tr>
@@ -143,6 +165,18 @@
   </div>
 
   <!-- Scripts modulares -->
-  <script type="module" src="js/main.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(registros => registros.forEach(registro => registro.unregister()))
+        .catch(() => {});
+    }
+    if ("caches" in window) {
+      caches.keys()
+        .then(claves => claves.forEach(clave => caches.delete(clave)))
+        .catch(() => {});
+    }
+  </script>
+  <script type="module" src="js/main.js?v=20260512-calibrated-patterns"></script>
 </body>
 </html>

@@ -1,0 +1,19 @@
+{
+  "name": "calculo-caudales-backend",
+  "version": "1.0.0",
+  "description": "Backend para almacenar datos horarios de la API CORA en PostgreSQL.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "psql -d calculo_caudales -f sql/init.sql"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1"
+  }
+}

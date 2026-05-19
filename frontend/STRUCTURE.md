@@ -155,16 +155,12 @@ Para mover la API a un backend separado:
 
 ✅ Modular y mantenible
 ✅ Separación de responsabilidades
-✅ Fácil de testear
 ✅ Sin dependencias externas
 ✅ Funciona totalmente en el cliente
 ✅ Rápido y eficiente
 
 ## Próximos Pasos
 
-- [ ] Agregar soporte para TypeScript
-- [ ] Implementar sistema de logging
-- [ ] Crear tests unitarios
-- [ ] Agregar compresión de assets
-- [ ] Implementar PWA (Progressive Web App)
-- [ ] Migrar API a backend Node.js
+- [ ] Ajustar la calibración de caudal con más datos reales.
+- [ ] Mejorar la comparación entre nivel real y nivel proyectado.
+- [ ] Documentar el significado de `qe`, `qs` y `qv`.

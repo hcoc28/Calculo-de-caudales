@@ -4,40 +4,48 @@
  */
 
 import {
-  VOLUME_TABLE,
-  OPERATION_LEVELS,
-  MANDATORY_HOURS,
-  POWER,
-  SIMULATION_PARAMS,
-  INFLOW_PATTERN
+  tabla_volumen,
+  niveles_operacion,
+  horas_obligatorias,
+  potencia,
+  parametros_simulacion,
+  AJUSTES_CAUDAL_NETO
 } from './config.js';
 
-const { minimum: MIN_LEVEL, start: START_LEVEL, overflow: OVERFLOW_LEVEL, maximum: MAX_LEVEL } = OPERATION_LEVELS;
-const { hours: MANDATORY_HRS, simulation: SIMULATION_HOURS } = MANDATORY_HOURS;
-const { unit1: POWER_UNIT1, unit2: POWER_UNIT2 } = POWER;
+const { minimo: NIVEL_MINIMO, inicio: NIVEL_INICIO, rebalse: NIVEL_REBALSE, maximo: NIVEL_MAXIMO } = niveles_operacion;
+const { horas: HORAS_OBLIGATORIAS_LISTA, simulacion: HORAS_SIMULACION } = horas_obligatorias;
+const potencia_unidad1 = potencia.unidad1;
+const potencia_unidad2 = potencia.unidad2;
+const OPCIONES_OBLIGATORIAS_COMBINADAS = Array.isArray(potencia.opcionesObligatoriasCombinadas) ? potencia.opcionesObligatoriasCombinadas.slice().sort((a,b)=>a-b) : [potencia_unidad1 + potencia_unidad2];
+const potencia_dos_unidades = Math.min(potencia_unidad1 + potencia_unidad2, Math.max(...OPCIONES_OBLIGATORIAS_COMBINADAS));
+
+function obtenerCantidadUnidadesPorPotencia(potenciaGenerada) {
+  if (potenciaGenerada <= 0) return 0;
+  return potenciaGenerada <= potencia_unidad1 ? 1 : 2;
+}
 
 /**
  * Redondea a 2 decimales
  */
-export function round2(value) {
-  return Math.round(value * 100) / 100;
+export function redondear2(valor) {
+  return Math.round(valor * 100) / 100;
 }
 
 /**
  * Convierte nivel de agua (msnm) a volumen (m3)
  */
-export function levelToVolume(level) {
-  if (level <= VOLUME_TABLE[0][1]) return VOLUME_TABLE[0][0];
-  if (level >= VOLUME_TABLE[VOLUME_TABLE.length - 1][1]) {
-    return VOLUME_TABLE[VOLUME_TABLE.length - 1][0];
+export function nivelAVolumen(nivel) {
+  if (nivel <= tabla_volumen[0][1]) return tabla_volumen[0][0];
+  if (nivel >= tabla_volumen[tabla_volumen.length - 1][1]) {
+    return tabla_volumen[tabla_volumen.length - 1][0];
   }
 
-  for (let i = 0; i < VOLUME_TABLE.length - 1; i++) {
-    const [v1, h1] = VOLUME_TABLE[i];
-    const [v2, h2] = VOLUME_TABLE[i + 1];
+  for (let i = 0; i < tabla_volumen.length - 1; i++) {
+    const [v1, h1] = tabla_volumen[i];
+    const [v2, h2] = tabla_volumen[i + 1];
 
-    if (level >= h1 && level <= h2) {
-      return round2(v1 + ((level - h1) / (h2 - h1)) * (v2 - v1));
+    if (nivel >= h1 && nivel <= h2) {
+      return redondear2(v1 + ((nivel - h1) / (h2 - h1)) * (v2 - v1));
     }
   }
 
@@ -47,18 +55,18 @@ export function levelToVolume(level) {
 /**
  * Convierte volumen (m3) a nivel de agua (msnm)
  */
-export function volumeToLevel(volume) {
-  if (volume <= VOLUME_TABLE[0][0]) return VOLUME_TABLE[0][1];
-  if (volume >= VOLUME_TABLE[VOLUME_TABLE.length - 1][0]) {
-    return VOLUME_TABLE[VOLUME_TABLE.length - 1][1];
+export function volumenANivel(volumen) {
+  if (volumen <= tabla_volumen[0][0]) return tabla_volumen[0][1];
+  if (volumen >= tabla_volumen[tabla_volumen.length - 1][0]) {
+    return tabla_volumen[tabla_volumen.length - 1][1];
   }
 
-  for (let i = 0; i < VOLUME_TABLE.length - 1; i++) {
-    const [v1, h1] = VOLUME_TABLE[i];
-    const [v2, h2] = VOLUME_TABLE[i + 1];
+  for (let i = 0; i < tabla_volumen.length - 1; i++) {
+    const [v1, h1] = tabla_volumen[i];
+    const [v2, h2] = tabla_volumen[i + 1];
 
-    if (volume >= v1 && volume <= v2) {
-      return round2(h1 + ((volume - v1) / (v2 - v1)) * (h2 - h1));
+    if (volumen >= v1 && volumen <= v2) {
+      return redondear2(h1 + ((volumen - v1) / (v2 - v1)) * (h2 - h1));
     }
   }
 
@@ -68,106 +76,112 @@ export function volumeToLevel(volume) {
 /**
  * Calcula el caudal de salida basado en potencia
  */
-export function calculateOutflowRate(power) {
-  return round2(power / 2.69266667);
+export function calcularCaudalSalida(potenciaGenerada) {
+  return redondear2(potenciaGenerada / 2.69266667);
 }
 
 /**
  * Calcula el volumen turbinado en una hora
  */
-export function calculateTurbinedVolume(outflowRate) {
-  return round2(outflowRate * 3600);
+export function calcularVolumenTurbinado(caudalSalida) {
+  return redondear2(caudalSalida * 3600);
 }
 
 /**
  * Calcula factor de clima basado en lluvia
  */
-export function calculateClimateFactorByRain(rainfall) {
-  if (rainfall >= 20) return 1.50;
-  if (rainfall >= 10) return 1.30;
-  if (rainfall >= 5) return 1.15;
-  if (rainfall > 0) return 1.05;
+export function calcularFactorClimaPorLluvia(lluvia) {
+  if (lluvia >= 20) return 1.50;
+  if (lluvia >= 10) return 1.30;
+  if (lluvia >= 5) return 1.15;
+  if (lluvia > 0) return 1.05;
   return 1.00;
 }
 
 /**
  * Genera caudales de entrada para 24 horas
  */
-export function generateInflowPattern(baseFlow, rainfallData) {
-  const averagePattern = INFLOW_PATTERN.reduce((a, b) => a + b, 0) / INFLOW_PATTERN.length;
-  const inflowArray = [];
+export function generarPatronEntrada(caudalBase, datosLluvia, patronEntradaReal = null) {
+  const arregloEntrada = [];
 
-  for (let h = 0; h < SIMULATION_HOURS; h++) {
-    const patternHour = INFLOW_PATTERN[h];
-    const rainfall = rainfallData[h - 2] ?? 0;
-    const climateFactor = calculateClimateFactorByRain(rainfall);
-    const hourlyFactor = patternHour / averagePattern;
-    const flow = baseFlow * hourlyFactor * climateFactor;
-    inflowArray.push(round2(flow));
+  for (let h = 0; h < HORAS_SIMULACION; h++) {
+    const entradaReal = patronEntradaReal?.[h];
+    if (!Number.isFinite(entradaReal)) {
+      throw new Error(`Falta QE en base de datos para la hora ${String(h).padStart(2, "0")}:00.`);
+    }
+
+    const lluvia = datosLluvia[h - 2] ?? 0;
+    const factorClima = calcularFactorClimaPorLluvia(lluvia);
+    const ajuste = AJUSTES_CAUDAL_NETO[h] ?? 0;
+    const caudal = (entradaReal * factorClima) + ajuste;
+    arregloEntrada.push(redondear2(caudal));
   }
 
-  return inflowArray;
+  return arregloEntrada;
 }
 
 /**
  * Limita el volumen dentro de rangos válidos
  */
-export function limitVolume(volume) {
-  const min = VOLUME_TABLE[0][0];
-  const max = VOLUME_TABLE[VOLUME_TABLE.length - 1][0];
-  return Math.max(min, Math.min(max, round2(volume)));
+export function limitarVolumen(volumen) {
+  const min = tabla_volumen[0][0];
+  const max = tabla_volumen[tabla_volumen.length - 1][0];
+  return Math.max(min, Math.min(max, redondear2(volumen)));
 }
 
 /**
  * Evalúa un escenario de operación
  */
-export function evaluateScenario(previousVolume, inflow, power) {
-  const outflow = power > 0 ? calculateOutflowRate(power) : 0;
-  const turbinedVolume = power > 0 ? calculateTurbinedVolume(outflow) : 0;
-  const volumePerHour = round2(inflow * 3600);
-  const difference = round2(volumePerHour - turbinedVolume);
-  const finalVolume = limitVolume(previousVolume + difference);
-  const finalLevel = volumeToLevel(finalVolume);
+export function evaluarEscenario(volumenAnterior, caudalEntrada, potenciaGenerada) {
+  const salida = potenciaGenerada > 0 ? calcularCaudalSalida(potenciaGenerada) : 0;
+  const volumenTurbinado = salida > 0 ? calcularVolumenTurbinado(salida) : 0;
+  const volumenPorHora = redondear2(caudalEntrada * 3600);
+  const diferencia = redondear2(volumenPorHora - volumenTurbinado);
+  const volumenFinal = limitarVolumen(volumenAnterior + diferencia);
+  const nivelFinal = volumenANivel(volumenFinal);
 
   return {
-    power,
-    outflow: round2(outflow),
-    turbinedVolume: round2(turbinedVolume),
-    volumePerHour,
-    difference,
-    finalVolume,
-    finalLevel
+    potenciaGenerada,
+    salida: redondear2(salida),
+    volumenTurbinado: redondear2(volumenTurbinado),
+    volumenPorHora,
+    diferencia,
+    volumenFinal,
+    nivelFinal
   };
 }
 
 /**
  * Calcula el promedio de ingreso proyectado
  */
-export function calculateProjectedAverageInflow(inflowArray, currentHour, hoursAhead = SIMULATION_PARAMS.projectionHours) {
-  let sum = 0;
-  let count = 0;
+export function calcularPromedioEntradaProyectada(arregloEntrada, horaActual, horasAdelante = parametros_simulacion.horasProyeccion) {
+  let suma = 0;
+  let conteo = 0;
 
-  for (let i = currentHour; i < Math.min(currentHour + hoursAhead, inflowArray.length); i++) {
-    sum += inflowArray[i];
-    count++;
+  for (let i = horaActual; i < Math.min(horaActual + horasAdelante, arregloEntrada.length); i++) {
+    suma += arregloEntrada[i];
+    conteo++;
   }
 
-  return count > 0 ? round2(sum / count) : 0;
+  return conteo > 0 ? redondear2(suma / conteo) : 0;
 }
 
 /**
  * Verifica si la reserva es viable para el bloque obligatorio
  */
-export function isViableForMandatoryBlock(currentHour, volume, inflowArray) {
-  let currentVolume = volume;
+export function esViableParaBloqueObligatorio(horaActual, volumen, arregloEntrada) {
+  let volumenActual = volumen;
 
-  for (let h = currentHour + 1; h < SIMULATION_HOURS; h++) {
-    const inflow = inflowArray[h];
-    const power = MANDATORY_HRS.includes(h) ? POWER_UNIT2 : 0;
-    const scenario = evaluateScenario(currentVolume, inflow, power);
-    currentVolume = scenario.finalVolume;
+  for (let h = horaActual + 1; h < HORAS_SIMULACION; h++) {
+    const caudalEntrada = arregloEntrada[h];
+    // Para evaluar la viabilidad del bloque obligatorio, asumimos el peor caso:
+    // la mayor potencia combinada que podría requerirse durante horas obligatorias.
+    const potenciaObligatoriaMaxima = Math.max(...OPCIONES_OBLIGATORIAS_COMBINADAS);
+    const potenciaGenerada = HORAS_OBLIGATORIAS_LISTA.includes(h) ? potenciaObligatoriaMaxima : 0;
+    const escenario = evaluarEscenario(volumenActual, caudalEntrada, potenciaGenerada);
+    volumenActual = escenario.volumenFinal;
 
-    if (scenario.finalLevel < MIN_LEVEL) {
+    if (escenario.nivelFinal < NIVEL_MINIMO) {
       return false;
     }
   }
@@ -176,224 +190,235 @@ export function isViableForMandatoryBlock(currentHour, volume, inflowArray) {
 }
 
 /**
+ * Encuentra la máxima potencia constante viable para el bloque obligatorio completo
+ * @param {number} volumenInicialBloque Volumen inicial para el bloque
+ * @param {Array} arregloEntrada Array de caudales de entrada
+ * @returns {number} La máxima potencia constante viable, o 0 si ninguna es viable
+ */
+export function encontrarPotenciaObligatoriaConstanteMaxima(volumenInicialBloque, arregloEntrada) {
+  // Iterar de mayor a menor potencia
+  for (let i = OPCIONES_OBLIGATORIAS_COMBINADAS.length - 1; i >= 0; i--) {
+    const potenciaPrueba = OPCIONES_OBLIGATORIAS_COMBINADAS[i];
+    let volumenActual = volumenInicialBloque;
+    let esViable = true;
+
+    // Simular todo el bloque obligatorio con esta potencia constante
+    for (const horaObligatoria of HORAS_OBLIGATORIAS_LISTA) {
+      const caudalEntrada = arregloEntrada[horaObligatoria];
+      const escenario = evaluarEscenario(volumenActual, caudalEntrada, potenciaPrueba);
+      
+      if (escenario.nivelFinal < NIVEL_MINIMO) {
+        esViable = false;
+        break;
+      }
+      
+      volumenActual = escenario.volumenFinal;
+    }
+
+    // Si esta potencia es viable para todo el bloque, retornarla
+    if (esViable) {
+      return potenciaPrueba;
+    }
+  }
+
+  return 0; // Ninguna potencia es viable
+}
+
+/**
  * Ejecuta la simulación completa de 24 horas
  */
-export function simulateDay(initialLevel, baseFlow, rainfallData) {
-  const initialVolume = levelToVolume(initialLevel);
-  const inflowArray = generateInflowPattern(baseFlow, rainfallData);
+export function simularDia(nivelInicial, caudalBase, datosLluvia, patronEntradaReal = null) {
+  const volumenInicial = nivelAVolumen(nivelInicial);
+  const arregloEntrada = generarPatronEntrada(caudalBase, datosLluvia, patronEntradaReal);
 
-  let accumulatedVolume = initialVolume;
-  let currentLevel = initialLevel;
-  let isValidProduction = true;
-  let productionHours = 0;
-  let productionMode = 0;  // 0=off, 1=unit1, 2=unit2
-  let hoursInMode = 0;
+  let volumenAcumulado = volumenInicial;
+  let nivelActual = nivelInicial;
+  let produccionValida = true;
+  let horasProduccion = 0;
+  let modoProduccion = 0;  // 0=off, 1=unidad1, 2=unidad2
+  let horasEnModo = 0;
+  
+  // La potencia constante se calculará cuando se llegue a la primera hora obligatoria
+  let potenciaObligatoriaConstante = null;
 
-  const results = [];
+  const resultados = [];
 
-  for (let h = 0; h < SIMULATION_HOURS; h++) {
-    const fromHour = h;
-    const toHour = (h + 1) % 24;
-    const previousVolume = accumulatedVolume;
-    const inflow = inflowArray[h];
-    const isMandatory = MANDATORY_HRS.includes(h);
-    const projectedAvgInflow = calculateProjectedAverageInflow(inflowArray, h, SIMULATION_PARAMS.projectionHours);
+  for (let h = 0; h < HORAS_SIMULACION; h++) {
+    const horaDesde = h;
+    const horaHasta = (h + 1) % 24;
+    const volumenAnterior = volumenAcumulado;
+    const caudalEntrada = arregloEntrada[h];
+    const esObligatoria = HORAS_OBLIGATORIAS_LISTA.includes(h);
+    const promedioEntradaProyectada = calcularPromedioEntradaProyectada(arregloEntrada, h, parametros_simulacion.horasProyeccion);
 
     // Evaluar escenarios
-    const scenario0 = evaluateScenario(previousVolume, inflow, 0);
-    const scenario1 = evaluateScenario(previousVolume, inflow, POWER_UNIT1);
-    const scenario2 = evaluateScenario(previousVolume, inflow, POWER_UNIT2);
+    const escenario0 = evaluarEscenario(volumenAnterior, caudalEntrada, 0);
+    const escenario1 = evaluarEscenario(volumenAnterior, caudalEntrada, potencia_unidad1);
+    const escenario2 = evaluarEscenario(volumenAnterior, caudalEntrada, potencia_dos_unidades);
 
-    let chosen = scenario0;
-    let status = "Apagada";
-    let newMode = productionMode;
+    let elegido = escenario0;
+    let estado = "Apagada";
+    let nuevoModo = modoProduccion;
 
     // LÓGICA DE OPERACIÓN
-    if (isMandatory) {
-      newMode = 2;
-      if (scenario2.finalLevel < MIN_LEVEL) {
-        chosen = scenario0;
-        status = "No viable - Apagada";
-        isValidProduction = false;
-        newMode = 0;
+    if (esObligatoria) {
+      // Las horas obligatorias forman un bloque único de 18:00 a 22:00.
+      // La potencia se mantiene constante durante las 4 horas.
+      if (potenciaObligatoriaConstante === null) {
+        potenciaObligatoriaConstante = encontrarPotenciaObligatoriaConstanteMaxima(volumenAnterior, arregloEntrada);
+      }
+
+      if (potenciaObligatoriaConstante > 0) {
+        const escenarioObligatorioElegido = evaluarEscenario(volumenAnterior, caudalEntrada, potenciaObligatoriaConstante);
+        const cantidadUnidades = obtenerCantidadUnidadesPorPotencia(escenarioObligatorioElegido.potenciaGenerada);
+        elegido = escenarioObligatorioElegido;
+        nuevoModo = cantidadUnidades;
+        estado = "Encendida";
+        horasProduccion++;
       } else {
-        chosen = scenario2;
-        status = "Encendida obligatoria (2 unidades)";
-        productionHours++;
+        // Si ninguna potencia es viable, marcar no viable
+        elegido = escenario0;
+        estado = "No viable - Apagada";
+        produccionValida = false;
+        nuevoModo = 0;
       }
     } else {
-      const afterMandatory = h > MANDATORY_HRS[MANDATORY_HRS.length - 1];
-      const nearMandatory = h < MANDATORY_HRS[0] && (MANDATORY_HRS[0] - h) <= 1;
+      const despuesObligatoria = h > HORAS_OBLIGATORIAS_LISTA[HORAS_OBLIGATORIAS_LISTA.length - 1];
+      const cercaObligatoria = h < HORAS_OBLIGATORIAS_LISTA[0] && (HORAS_OBLIGATORIAS_LISTA[0] - h) <= 1;
 
-      if (afterMandatory) {
-        const safeLevel = currentLevel >= (MIN_LEVEL + SIMULATION_PARAMS.postMandatoryMargin);
-        const highInflow = projectedAvgInflow >= SIMULATION_PARAMS.highInflowThreshold;
+      if (despuesObligatoria) {
+        const nivelSeguro = nivelActual >= (NIVEL_MINIMO + parametros_simulacion.margenPosteriorObligatorio);
+        const caudalSuficiente = promedioEntradaProyectada >= parametros_simulacion.umbralCaudalAlto;
 
-        if (!safeLevel || !highInflow) {
-          chosen = scenario0;
-          status = "Apagada";
-          newMode = 0;
+        if (nivelSeguro && caudalSuficiente && escenario2.nivelFinal >= NIVEL_MINIMO) {
+          elegido = escenario2;
+          estado = "Encendida";
+          nuevoModo = 2;
+          horasProduccion++;
+        } else if (nivelSeguro && caudalSuficiente && escenario1.nivelFinal >= NIVEL_MINIMO) {
+          elegido = escenario1;
+          estado = "Encendida ";
+          nuevoModo = 1;
+          horasProduccion++;
         } else {
-          // Lógica de operación post-obligatoria
-          if (productionMode === 2) {
-            if (scenario2.finalLevel >= MIN_LEVEL) {
-              chosen = scenario2;
-              status = "Encendida continua (2 unidades)";
-              newMode = 2;
-              productionHours++;
-            } else if (scenario1.finalLevel >= MIN_LEVEL && hoursInMode >= POWER.minHoursUnit2) {
-              chosen = scenario1;
-              status = "Encendida continua (1 unidad)";
-              newMode = 1;
-              productionHours++;
-            } else {
-              chosen = scenario0;
-              status = "Apagada";
-              newMode = 0;
-            }
-          } else if (productionMode === 1) {
-            if (hoursInMode >= POWER.minHoursBeforeUnit2 && scenario2.finalLevel >= MIN_LEVEL && currentLevel >= START_LEVEL) {
-              chosen = scenario2;
-              status = "Encendida continua (2 unidades)";
-              newMode = 2;
-              productionHours++;
-            } else if (scenario1.finalLevel >= MIN_LEVEL) {
-              chosen = scenario1;
-              status = "Encendida continua (1 unidad)";
-              newMode = 1;
-              productionHours++;
-            } else {
-              chosen = scenario0;
-              status = "Apagada";
-              newMode = 0;
-            }
-          } else {
-            if (scenario1.finalLevel >= MIN_LEVEL && currentLevel >= START_LEVEL) {
-              chosen = scenario1;
-              status = "Encendida continua (1 unidad)";
-              newMode = 1;
-              productionHours++;
-            } else {
-              chosen = scenario0;
-              status = "Apagada";
-              newMode = 0;
-            }
-          }
+          elegido = escenario0;
+          estado = "Apagada";
+          nuevoModo = 0;
         }
       } else {
         // Lógica pre-obligatoria
-        if (productionMode === 2) {
-          const blockViableWith2 = isViableForMandatoryBlock(h, scenario2.finalVolume, inflowArray);
+        if (modoProduccion === 2) {
+          const bloqueViableCon2 = esViableParaBloqueObligatorio(h, escenario2.volumenFinal, arregloEntrada);
 
-          if (nearMandatory) {
-            if (scenario2.finalLevel >= MIN_LEVEL && blockViableWith2) {
-              chosen = scenario2;
-              status = "Encendida continua (2 unidades)";
-              newMode = 2;
-              productionHours++;
+          if (cercaObligatoria) {
+            if (escenario2.nivelFinal >= NIVEL_MINIMO && bloqueViableCon2) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProduccion++;
             } else {
-              chosen = scenario0;
-              status = "Apagada";
-              newMode = 0;
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
             }
           } else {
-            if (scenario2.finalLevel >= MIN_LEVEL && blockViableWith2) {
-              chosen = scenario2;
-              status = "Encendida continua (2 unidades)";
-              newMode = 2;
-              productionHours++;
-            } else if (scenario1.finalLevel >= MIN_LEVEL && hoursInMode >= POWER.minHoursUnit2) {
-              chosen = scenario1;
-              status = "Encendida continua (1 unidad)";
-              newMode = 1;
-              productionHours++;
+            if (escenario2.nivelFinal >= NIVEL_MINIMO && bloqueViableCon2) {
+              elegido = escenario2;
+              estado = "Encendida continua (2 unidades)";
+              nuevoModo = 2;
+              horasProduccion++;
+            } else if (escenario1.nivelFinal >= NIVEL_MINIMO && horasEnModo >= potencia.horasMinimasUnidad2) {
+              elegido = escenario1;
+              estado = "Encendida continua (1 unidad)";
+              nuevoModo = 1;
+              horasProduccion++;
             } else {
-              chosen = scenario0;
-              status = "Apagada";
-              newMode = 0;
+              elegido = escenario0;
+              estado = "Apagada";
+              nuevoModo = 0;
             }
           }
-        } else if (productionMode === 1) {
-          const hoursUntilMandatory = MANDATORY_HRS[0] - h;
-          const canUpgrade = hoursInMode >= POWER.minHoursBeforeUnit2 && 
-                            (currentLevel >= START_LEVEL || (hoursUntilMandatory <= 1 && scenario2.finalLevel >= MIN_LEVEL));
+        } else if (modoProduccion === 1) {
+          const horasHastaObligatoria = HORAS_OBLIGATORIAS_LISTA[0] - h;
+          const puedeSubirUnidad = horasEnModo >= potencia.horasMinimasAntesUnidad2 && 
+                            (nivelActual >= NIVEL_INICIO || (horasHastaObligatoria <= 1 && escenario2.nivelFinal >= NIVEL_MINIMO));
 
-          if (canUpgrade && scenario2.finalLevel >= MIN_LEVEL) {
-            chosen = scenario2;
-            status = "Encendida continua (2 unidades)";
-            newMode = 2;
-            productionHours++;
-          } else if (scenario1.finalLevel >= MIN_LEVEL) {
-            chosen = scenario1;
-            status = "Encendida continua (1 unidad)";
-            newMode = 1;
-            productionHours++;
+          if (puedeSubirUnidad && escenario2.nivelFinal >= NIVEL_MINIMO) {
+            elegido = escenario2;
+            estado = "Encendida continua (2 unidades)";
+            nuevoModo = 2;
+            horasProduccion++;
+          } else if (escenario1.nivelFinal >= NIVEL_MINIMO) {
+            elegido = escenario1;
+            estado = "Encendida continua (1 unidad)";
+            nuevoModo = 1;
+            horasProduccion++;
           } else {
-            chosen = scenario0;
-            status = "Apagada";
-            newMode = 0;
+            elegido = escenario0;
+            estado = "Apagada";
+            nuevoModo = 0;
           }
         } else {
-          const blockViableWith2 = isViableForMandatoryBlock(h, scenario2.finalVolume, inflowArray);
-          const blockViableWith1 = isViableForMandatoryBlock(h, scenario1.finalVolume, inflowArray);
+          const bloqueViableCon2 = esViableParaBloqueObligatorio(h, escenario2.volumenFinal, arregloEntrada);
+          const bloqueViableCon1 = esViableParaBloqueObligatorio(h, escenario1.volumenFinal, arregloEntrada);
 
-          if (currentLevel >= OVERFLOW_LEVEL && scenario2.finalLevel >= MIN_LEVEL && blockViableWith2) {
-            chosen = scenario2;
-            status = "Encendida continua (2 unidades)";
-            newMode = 2;
-            productionHours++;
-          } else if (currentLevel >= START_LEVEL && scenario1.finalLevel >= MIN_LEVEL && blockViableWith1) {
-            chosen = scenario1;
-            status = "Encendida continua (1 unidad)";
-            newMode = 1;
-            productionHours++;
+          if (nivelActual >= NIVEL_REBALSE && escenario2.nivelFinal >= NIVEL_MINIMO && bloqueViableCon2) {
+            elegido = escenario2;
+            estado = "Encendida continua (2 unidades)";
+            nuevoModo = 2;
+            horasProduccion++;
+          } else if (nivelActual >= NIVEL_INICIO && escenario1.nivelFinal >= NIVEL_MINIMO && bloqueViableCon1) {
+            elegido = escenario1;
+            estado = "Encendida continua (1 unidad)";
+            nuevoModo = 1;
+            horasProduccion++;
           } else {
-            chosen = scenario0;
-            status = "Apagada";
-            newMode = 0;
+            elegido = escenario0;
+            estado = "Apagada";
+            nuevoModo = 0;
           }
         }
       }
     }
 
-    accumulatedVolume = chosen.finalVolume;
-    currentLevel = chosen.finalLevel;
+    volumenAcumulado = elegido.volumenFinal;
+    nivelActual = elegido.nivelFinal;
 
-    if (newMode === productionMode) {
-      hoursInMode++;
+    if (nuevoModo === modoProduccion) {
+      horasEnModo++;
     } else {
-      hoursInMode = 1;
+      horasEnModo = 1;
     }
 
-    productionMode = newMode;
+    modoProduccion = nuevoModo;
 
-    results.push({
-      de: fromHour,
-      a: toHour,
-      potencia: chosen.power,
-      caudalSalida: chosen.outflow,
-      volumenTurbinado: chosen.turbinedVolume,
-      caudalIngreso: inflow,
-      volumenPorHora: chosen.volumePerHour,
-      diferencia: chosen.difference,
-      acumulado: accumulatedVolume,
-      nivel: currentLevel,
-      estado: status
+    resultados.push({
+      de: horaDesde,
+      a: horaHasta,
+      potencia: elegido.potenciaGenerada,
+      caudalSalida: elegido.salida,
+      volumenTurbinado: elegido.volumenTurbinado,
+      caudalIngreso: caudalEntrada,
+      volumenPorHora: elegido.volumenPorHora,
+      diferencia: elegido.diferencia,
+      acumulado: volumenAcumulado,
+      nivel: nivelActual,
+      estado: estado
     });
   }
 
   return {
-    resultados: results,
+    resultados: resultados,
     resumen: {
-      nivelInicial: initialLevel,
-      volumenInicial: initialVolume,
-      nivelFinal: results[results.length - 1].nivel,
-      volumenFinal: results[results.length - 1].acumulado,
-      nivelMinimo: Math.min(...results.map(r => r.nivel)),
-      nivelMaximo: Math.max(...results.map(r => r.nivel)),
-      potenciaElegida: POWER_UNIT2,
-      horasProduccion: productionHours,
-      produccionValida: isValidProduction
+      nivelInicial: nivelInicial,
+      volumenInicial: volumenInicial,
+      nivelFinal: resultados[resultados.length - 1].nivel,
+      volumenFinal: resultados[resultados.length - 1].acumulado,
+      nivelMinimo: Math.min(...resultados.map(r => r.nivel)),
+      nivelMaximo: Math.max(...resultados.map(r => r.nivel)),
+      potenciaElegida: potencia_dos_unidades,
+      horasProduccion: horasProduccion,
+      produccionValida: produccionValida
     }
   };
 }

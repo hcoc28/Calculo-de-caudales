@@ -18,9 +18,9 @@ Calculo-de-caudales/
 │       ├── calculator.js              # Lógica de cálculos
 │       └── ui.js                      # Gestión de interfaz
 │
-├── backend/                            # API y Servicios (Servidor)
-│   ├── README.md                      # Guía de setup
-│   └── IMPLEMENTATION.md              # Documentación técnica
+├── backend/                            # Documentación sin backend activo
+│   ├── README.md
+│   └── IMPLEMENTATION.md
 │
 ├── .gitignore                         # Archivos ignorados
 └── README.md                          # Este archivo
@@ -159,40 +159,6 @@ Coordina todo el flujo:
 - **IMPLEMENTATION.md**: Guía completa de implementación
 - **README.md**: Instrucciones de setup
 
-## 🔄 Próximas Mejoras (Roadmap)
-
-### Fase 1: Backend (Prioridad Alta)
-- [ ] Crear API REST con Node.js/Express
-- [ ] Persistencia de datos en base de datos
-- [ ] Autenticación JWT
-- [ ] Rate limiting
-
-### Fase 2: Características
-- [ ] Gráficos de tendencias (Chart.js)
-- [ ] Exportación de reportes PDF
-- [ ] Sistema de alertas
-- [ ] Historial de simulaciones
-
-### Fase 3: Optimización
-- [ ] PWA (Progressive Web App)
-- [ ] TypeScript
-- [ ] Sistema de testing
-- [ ] CI/CD pipeline
-
-### Fase 4: Escalabilidad
-- [ ] WebSockets para actualizaciones en tiempo real
-- [ ] Caché Redis
-- [ ] Microservicios
-- [ ] Dockerización
-
-## 🚀 Migración a Backend
-
-Cuando decidas mover la API al backend:
-
-1. **Leer**: `/backend/IMPLEMENTATION.md`
-2. **Elegir**: Stack (Node.js o Python)
-3. **Implementar**: Servidor con rutas de API
-4. **Actualizar**: `frontend/js/api.js` para usar servidor
 5. **Testear**: Toda la integración
 
 Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
@@ -200,7 +166,6 @@ Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
 ## 📚 Documentación Adicional
 
 - **Frontend**: Ver `frontend/STRUCTURE.md`
-- **Backend**: Ver `backend/IMPLEMENTATION.md`
 - **API**: Open-Meteo en https://open-meteo.com/
 
 ## 🎯 Casos de Uso
@@ -208,8 +173,7 @@ Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
 1. **Simulación Diaria**: Predecir comportamiento del embalse
 2. **Planificación**: Optimizar horas de generación
 3. **Emergencias**: Evaluar viabilidad en condiciones críticas
-4. **Reportes**: Generar datos para auditorías
-5. **Análisis**: Comparar escenarios históricos
+4. **Análisis**: Comparar escenarios en la sesión actual
 
 ## 📊 Ejemplo de Uso
 
@@ -247,7 +211,6 @@ Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
 
 ### "Las ediciones no se guardan"
 - Los cambios son solo en sesión actual
-- Para guardar permanente, usa backend
 - Los datos se pierden al recargar
 
 ## 👨‍💻 Desarrollo Local
@@ -257,13 +220,10 @@ Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
 git clone <repo-url>
 cd Calculo-de-caudales
 
-# Abrir en navegador (sin servidor necesario)
-# Opción 1: Doble clic en frontend/index.html
-# Opción 2: Usar Live Server en VS Code
-
-# Con Python (si tienes):
-python -m http.server 8000
-# Luego abre http://localhost:8000/frontend/
+# Con Python:
+cd frontend
+python -m http.server 3000
+# Luego abre http://127.0.0.1:3000/
 ```
 
 ## 📄 Licencia
@@ -281,9 +241,7 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## 📞 Soporte
 
-Para reportar bugs o sugerir mejoras:
-- Abre un issue en GitHub
-- Revisa la documentación en `/frontend/STRUCTURE.md` y `/backend/IMPLEMENTATION.md`
+Para reportar bugs o sugerir mejoras, revisa la documentación en `/frontend/STRUCTURE.md`.
 
 ---
 

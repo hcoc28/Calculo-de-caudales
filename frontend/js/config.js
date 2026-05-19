@@ -6,16 +6,16 @@
 // ============================================
 // UBICACIÓN GEOGRÁFICA
 // ============================================
-export const LOCATION = {
-  name: "El Cafetal",
-  latitude: 15.14375,
-  longitude: -90.07007
+export const UBICACION = {
+  nombre: "El Cafetal",
+  latitud: 15.14375,
+  longitud: -90.07007
 };
 
 // ============================================
 // TABLA DE VOLUMEN - NIVEL (msnm)
 // ============================================
-export const VOLUME_TABLE = [
+export const tabla_volumen = [
   [0.00, 770.00],
   [2297.00, 770.50],
   [5167.70, 771.00],
@@ -35,75 +35,101 @@ export const VOLUME_TABLE = [
   [104784.00, 778.00]
 ];
 
+export const TABLA_VOLUMEN_ALIAS = tabla_volumen;
+
 // ============================================
 // NIVELES DE OPERACIÓN (msnm)
 // ============================================
-export const OPERATION_LEVELS = {
-  minimum: 773.00export const INFLOW_PATTERNS = {
-  normal: [1.70, 1.55, ...],      // Patrón actual
-  dry: [0.80, 0.70, ...],         // Sequía
-  rainy: [3.20, 3.50, ...],       // Lluvia
-  storm: [5.00, 6.00, ...]        // Tormenta
-};,      // Nivel mínimo permitido
-  start: 777.50,        // Nivel de inicio de operación
-  overflow: 777.75,     // Nivel de rebalse
-  maximum: 778.00       // Nivel máximo del embalse
+export const niveles_operacion = {
+  minimo: 773.50,      // Nivel mínimo permitido
+  inicio: 777.50,        // Nivel de inicio de operación
+  rebalse: 777.75,     // Nivel de rebalse
+  maximo: 778.00       // Nivel máximo del embalse
 };
+
+export const NIVELES_OPERACION_ALIAS = niveles_operacion;
 
 // ============================================
 // CONFIGURACIÓN DE HORAS OBLIGATORIAS
 // ============================================
-export const MANDATORY_HOURS = {
-  hours: [18, 19, 20, 21],
-  simulation: 24,
-  updateInterval: 10 * 60 * 1000  // 10 minutos
+// Cada número representa la hora de inicio del tramo obligatorio:
+// 18 = 18:00-19:00, 19 = 19:00-20:00, 20 = 20:00-21:00, 21 = 21:00-22:00.
+// Por eso no se incluye 22; agregarlo sería una quinta hora obligatoria, 22:00-23:00.
+export const horas_obligatorias = {
+  horas: [18, 19, 20, 21],
+  simulacion: 24,
+  intervaloActualizacion: 10 * 60 * 1000  // 10 minutos
 };
+
+export const HORAS_OBLIGATORIAS = horas_obligatorias;
 
 // ============================================
 // POTENCIA DE GENERACIÓN (MW)
 // ============================================
-export const POWER = {
-  unit1: 4.2,     // Una unidad
-  unit2: 8.2,     // Dos unidades
-  minHoursUnit1: 2,
-  minHoursUnit2: 2,
-  minHoursBeforeUnit2: 2
+export const potencia = {
+  unidad1: 4.2,               // Potencia máxima de la unidad 1 (MW)
+  unidad2: 4.2,               // Potencia máxima de la unidad 2 (MW)
+  // horasMinimasUnidad1/2: restricciones de tiempo de operación mínima por unidad
+  horasMinimasUnidad1: 2,
+  horasMinimasUnidad2: 2,
+  horasMinimasAntesUnidad2: 2,
+  // Opciones de potencia combinada que se pueden aplicar durante las horas obligatorias
+  // Cada valor representa potencia total (MW) con una o dos unidades encendidas.
+  // El simulador intentará elegir la potencia viable de esta lista que mantenga
+  // el nivel por encima del mínimo. Mantén una opción máxima (p. ej. 8.3) si aplica.
+  opcionesObligatoriasCombinadas: Array.from(
+    { length: Math.round((8.3 - 4.2) * 10) + 1 },
+    (_, i) => Math.round((4.2 + i * 0.1) * 10) / 10
+  ).sort((a, b) => a - b)
 };
+
+export const POTENCIA_ALIAS = potencia;
 
 // ============================================
 // PARÁMETROS DE SIMULACIÓN
 // ============================================
-export const SIMULATION_PARAMS = {
-  highInflowThreshold: 1.80,           // m3/s
-  postMandatoryMargin: 0.20,           // msnm
-  projectionHours: 3
+export const PARAMETROS_SIMULACION_ALIAS = {
+  umbralCaudalAlto: 2.20,           // m3/s
+  margenPosteriorObligatorio: 0.15,           // msnm
+  horasProyeccion: 5,                // Horas a proyectar para la toma de decisiones
+  nivelMaximoProyeccion: 778.50,        // Nivel máximo permitido en proyecciones para evitar alarmas falsas
+  nivelMinimoProyeccion: 773.00         // Nivel mínimo permitido en proyecciones para evitar alarmas falsas
 };
 
+export const parametros_simulacion = PARAMETROS_SIMULACION_ALIAS;
+
 // ============================================
-// PATRÓN DE ENTRADA DE AGUA (m3/s)
-// Patrón horario típico del río
+// AJUSTES HORARIOS DE CAUDAL NETO (m3/s)
 // ============================================
-export const INFLOW_PATTERN = [
-  1.70, 1.55, 1.55, 1.75, 1.95, 2.10,
-  2.15, 2.35, 2.25, 2.05, 2.15, 2.05,
-  1.70, 1.95, 1.90, 1.95, 2.20, 2.10,
-  1.55, 1.55, 1.55, 1.70, 1.95, 2.65
-];
+// Calibración contra datos reales observados:
+// 19:00 -> 20:00 baja de 775.25 a 774.57
+// 20:00 -> 21:00 baja de 774.57 a 773.90
+export const AJUSTES_CAUDAL_NETO = {
+  19: -0.53,
+  20: -0.26,
+  21: 0.81
+};
 
 // ============================================
 // API ENDPOINTS
 // ============================================
 export const API = {
-  climate: {
-    baseUrl: "https://api.open-meteo.com/v1/forecast",
-    timeout: 10000
+  clima: {
+    urlBase: "https://api.open-meteo.com/v1/forecast",
+    tiempoEspera: 10000
+  },
+  embalse: {
+    urlBackend: "/api/cora/datos",
+    urlPatronEntrada: "/api/cora/patron-entrada",
+    cantidadUltimos: 24,
+    tiempoEspera: 10000
   }
 };
 
 // ============================================
 // CÓDIGOS DE CLIMA Y SUS DESCRIPCIONES
 // ============================================
-export const WEATHER_CODES = {
+export const CODIGOS_CLIMA = {
   0: "Despejado",
   1: "Mayormente despejado",
   2: "Parcialmente nublado",
@@ -137,25 +163,25 @@ export const WEATHER_CODES = {
 // ============================================
 // ICONOS DE CLIMA
 // ============================================
-export const WEATHER_ICONS = {
-  day: {
-    clear: "☀️",
-    partly: "🌤️",
-    cloudy: "☁️",
-    fog: "🌫️",
-    drizzle: "🌦️",
-    rain: "🌧️",
-    snow: "🌨️",
-    storm: "⛈️"
+export const ICONOS_CLIMA = {
+  dia: {
+    despejado: "☀️",
+    parcial: "🌤️",
+    nublado: "☁️",
+    neblina: "🌫️",
+    llovizna: "🌦️",
+    lluvia: "🌧️",
+    nieve: "🌨️",
+    tormenta: "⛈️"
   },
-  night: {
-    clear: "🌙",
-    partly: "🌙☁️",
-    cloudy: "☁️",
-    fog: "🌫️",
-    drizzle: "🌦️",
-    rain: "🌧️",
-    snow: "🌨️",
-    storm: "⛈️"
+  noche: {
+    despejado: "🌙",
+    parcial: "🌙☁️",
+    nublado: "☁️",
+    neblina: "🌫️",
+    llovizna: "🌦️",
+    lluvia: "🌧️",
+    nieve: "🌨️",
+    tormenta: "⛈️"
   }
 };

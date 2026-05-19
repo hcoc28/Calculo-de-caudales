@@ -54,21 +54,10 @@ Calculo-de-caudales/
 │                                ├─ recalculateFromRow()
 │                                └─ setButtonLoading()
 │
-└── 📁 backend/ ........................... API Y SERVICIOS (Servidor)
+└── 📁 backend/ ........................... Documentación sin implementación activa
     │
-    ├── 📄 README.md ..................... Guía de setup e instalación
-    ├── 📄 IMPLEMENTATION.md ............ Documentación técnica completa
-    │
-    ├── 📁 (Propuesto)
-    │   ├── server.js/main.py
-    │   ├── package.json
-    │   ├── .env
-    │   ├── routes/
-    │   ├── controllers/
-    │   ├── services/
-    │   ├── middleware/
-    │   ├── config/
-    │   └── tests/
+    ├── 📄 README.md
+    └── 📄 IMPLEMENTATION.md
 ```
 
 ## 🔄 Flujo de Datos
@@ -103,7 +92,7 @@ Calculo-de-caudales/
     │   BACKEND (Futuro - Node.js / Python)       │
     │   API REST para persistencia de datos       │
     │   - Guardar simulaciones                    │
-    │   - Autenticación                           │
+    │   - Sin backend activo                      │
     │   - Reportes                                │
     └─────────────────────────────────────────────┘
 ```
@@ -240,7 +229,7 @@ main.js
 - 📝 Guardar en base de datos
 - 📝 Histórico de simulaciones
 - 📝 Compartir resultados
-- 📝 Autenticación de usuarios
+- 📝 Integración directa con APIs externas desde el frontend
 
 ## 📚 Cómo Aprender el Código
 

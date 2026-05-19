@@ -1,58 +1,81 @@
 # Backend - Cálculo de Caudales
 
-Esta carpeta está reservada para los servicios backend del proyecto.
+Backend para guardar automáticamente los datos horarios de la API CORA en PostgreSQL.
 
-## 📋 Planes Futuros
+## Datos almacenados
 
-- [ ] API REST con Node.js / Express o Python / Flask
-- [ ] Base de datos para almacenar simulaciones
-- [ ] Autenticación de usuarios
-- [ ] Sistema de reportes automáticos
-- [ ] Integración con sistemas SCADA
-- [ ] WebSockets para actualizaciones en tiempo real
+La tabla `datos_cora` guarda:
 
-## 🏗️ Estructura Propuesta
+- `fecha`
+- `hora`
+- `nivel`
+- `qe`
+- `qs`
+- `qv`
+- `potencia_activa`
+- `clima`
+- `datos_originales`
 
-```
-backend/
-├── api/              # Endpoints de API
-├── models/           # Modelos de datos
-├── services/         # Lógica de negocio
-├── config/           # Configuración
-├── middleware/       # Middleware
-└── tests/            # Pruebas
-```
+## Configuración
 
-## 🔧 Stack Sugerido
+1. Crear la base y usuario en PostgreSQL:
 
-### Opción 1: Node.js
 ```bash
-npm init -y
-npm install express dotenv cors
+psql -U postgres -f sql/create_database.sql
 ```
 
-### Opción 2: Python
+2. Crear las tablas:
+
 ```bash
-pip install flask flask-cors python-dotenv
+psql -U postgres -d calculo_caudales -f sql/init.sql
 ```
 
-## 📌 Endpoints Sugeridos
+3. Copiar `.env.example` como `.env` y ajustar la contraseña:
 
-- `POST /api/simulations` - Crear nueva simulación
-- `GET /api/simulations/:id` - Obtener simulación
-- `PUT /api/simulations/:id` - Actualizar simulación
-- `DELETE /api/simulations/:id` - Eliminar simulación
-- `GET /api/simulations` - Listar simulaciones
-- `GET /api/reports/:id` - Generar reporte
+```env
+DATABASE_URL=postgres://caudales_user:tu_password_seguro@localhost:5432/calculo_caudales
+```
 
-## 🔐 Seguridad
+4. Instalar dependencias y ejecutar:
 
-- Validación de entrada
-- Rate limiting
-- CORS configurado
-- Variables de entorno para secretos
-- Autenticación JWT
+```bash
+npm install
+npm start
+```
 
----
+El backend y el frontend quedan en un solo puerto:
 
-Espera instrucciones para comenzar el desarrollo del backend.
+```text
+http://localhost:4000
+```
+
+## Sincronización automática
+
+La variable `CORA_SYNC_CRON=0 * * * *` hace que el backend consulte CORA cada hora, en el minuto 0, y guarde los datos en PostgreSQL.
+
+También sincroniza al iniciar si `CORA_SYNC_ON_START=true`.
+
+## Patrón de entrada para proyección
+
+El frontend ya no usa un patrón fijo de caudal. Para simular el día siguiente, solicita al backend el patrón de `QE` del día anterior:
+
+```text
+GET /api/cora/patron-entrada
+```
+
+El backend devuelve un arreglo de 24 posiciones, de la hora `00:00` a `23:00`, tomado desde `datos_cora.qe`.
+
+También se puede pedir una fecha específica:
+
+```text
+GET /api/cora/patron-entrada?fecha=2026-05-18
+```
+
+## Endpoints
+
+```text
+GET  /api/salud
+GET  /api/cora/datos?cantidad=24
+GET  /api/cora/patron-entrada
+POST /api/cora/sincronizar
+```
