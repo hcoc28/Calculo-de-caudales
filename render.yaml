@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: calculo-caudales
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: CORA_API_URL
+        sync: false
+      - key: CORA_API_CANTIDAD
+        value: 72
+      - key: CORA_SYNC_MINUTES
+        value: 10
+      - key: CORA_SYNC_ON_START
+        value: true
+      - key: ESCORRENTIA_COEFICIENTE
+        value: 0.65
+      - key: ESCORRENTIA_AREA_M2
+        sync: false

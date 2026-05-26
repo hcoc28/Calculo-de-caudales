@@ -93,6 +93,8 @@ http://localhost:4000
 
 No hace falta abrir un servidor separado en `3000`.
 
+En produccion Render debe ejecutar el backend como `Web Service`. No debe publicarse como `Static Site`, porque la app necesita ASP.NET Core para servir `/`, `/api/*` y ejecutar el sincronizador automatico.
+
 ## Por que queda JavaScript
 
 El navegador ejecuta HTML, CSS y JavaScript. Por eso `api.js`, `main.js`, `ui.js` y `config.js` siguen existiendo:

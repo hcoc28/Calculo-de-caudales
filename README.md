@@ -76,6 +76,29 @@ http://localhost:4000
 
 Ese puerto sirve todo: frontend, API, CORA, clima y simulacion.
 
+## Render
+
+En Render debe crearse como `Web Service`, no como `Static Site`. El frontend lo sirve ASP.NET Core desde el mismo backend.
+
+El proyecto incluye:
+
+- `Dockerfile`: compila y ejecuta el backend C# junto con el frontend.
+- `render.yaml`: plantilla de Render para desplegar como servicio Docker.
+
+Variables que debes configurar en Render:
+
+```text
+DATABASE_URL
+CORA_API_URL
+CORA_API_CANTIDAD=72
+CORA_SYNC_MINUTES=10
+CORA_SYNC_ON_START=true
+ESCORRENTIA_COEFICIENTE=0.65
+ESCORRENTIA_AREA_M2
+```
+
+El backend escucha en `0.0.0.0` usando la variable `PORT`, que es lo que Render necesita para enrutar trafico publico.
+
 ## Base de datos
 
 La base se llama normalmente:

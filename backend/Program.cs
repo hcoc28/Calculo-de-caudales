@@ -12,7 +12,7 @@ builder.Logging.AddConsole();
 
 var settings = AppSettings.FromEnvironment();
 
-builder.WebHost.UseUrls($"http://localhost:{settings.Port}");
+builder.WebHost.UseUrls($"http://0.0.0.0:{settings.Port}");
 builder.Services.AddCaudalesBackend(settings);
 
 var app = builder.Build();
