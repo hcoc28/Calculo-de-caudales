@@ -24,8 +24,9 @@ internal static class AppConfig
         var username = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(0) ?? "");
         var password = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(1) ?? "");
         var database = uri.AbsolutePath.TrimStart('/');
+        var port = uri.Port > 0 ? uri.Port : 5432;
 
-        return $"Host={uri.Host};Port={uri.Port};Database={database};Username={username};Password={password}";
+        return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password}";
     }
 
     public static int GetInt(string key, int fallback)
