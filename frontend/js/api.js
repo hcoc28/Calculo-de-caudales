@@ -1,16 +1,16 @@
 /**
  * API.JS - Gestión de llamadas a API externas
- * Maneja la obtención de datos climáticos desde Open-Meteo
+ * Maneja las llamadas al backend C#.
  */
 
-import { UBICACION, API, HORAS_OBLIGATORIAS } from './config.js';
+import { API, HORAS_OBLIGATORIAS } from './config.js';
 
-async function obtenerConTiempoLimite(url, tiempoEspera = 10000) {
+async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) {
   const controlador = new AbortController();
   const idTiempoEspera = setTimeout(() => controlador.abort(), tiempoEspera);
 
   try {
-    return await fetch(url, { signal: controlador.signal, cache: "no-store" });
+    return await fetch(url, { ...opciones, signal: controlador.signal, cache: "no-store" });
   } finally {
     clearTimeout(idTiempoEspera);
   }
@@ -21,29 +21,42 @@ async function obtenerConTiempoLimite(url, tiempoEspera = 10000) {
  * @returns {Promise<Object>} Datos de clima
  */
 export async function obtenerDatosClima() {
-  const { latitud, longitud } = UBICACION;
   const { urlBase, tiempoEspera } = API.clima;
 
-  const parametros = new URLSearchParams({
-    latitude: latitud,
-    longitude: longitud,
-    timezone: 'auto',
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m',
-    hourly: 'temperature_2m,precipitation,weather_code,is_day',
-    daily: 'temperature_2m_max,temperature_2m_min,sunrise,sunset',
-    forecast_days: '1'
-  });
-
-  const url = `${urlBase}?${parametros}`;
-
   try {
-    const respuesta = await obtenerConTiempoLimite(url, tiempoEspera);
+    const respuesta = await obtenerConTiempoLimite(urlBase, tiempoEspera);
     if (!respuesta.ok) {
-      throw new Error(`Error de API de clima: ${respuesta.status}`);
+      throw new Error(`Error de backend de clima: ${respuesta.status}`);
     }
     return await respuesta.json();
   } catch (error) {
     console.error('Error al obtener datos de clima:', error);
+    throw error;
+  }
+}
+
+/**
+ * Solicita al backend C# la simulación completa de 24 horas.
+ * El backend obtiene QE desde PostgreSQL y lluvia desde Open-Meteo.
+ */
+export async function obtenerSimulacion(planta, nivelInicial, alturaCanal = null) {
+  const { urlSimulacion, tiempoEspera } = API.embalse;
+
+  try {
+    const respuesta = await obtenerConTiempoLimite(urlSimulacion, tiempoEspera, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planta, nivelInicial, alturaCanal })
+    });
+    const datos = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(datos?.error ?? `Error de simulación: ${respuesta.status}`);
+    }
+
+    return datos;
+  } catch (error) {
+    console.error('Error al obtener simulación desde C#:', error);
     throw error;
   }
 }

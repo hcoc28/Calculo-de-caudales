@@ -1,264 +1,105 @@
-# 🗺️ Mapa de Navegación del Proyecto
+# Arquitectura
 
-## 📂 Estructura Completa
+## Flujo principal
 
-```
-Calculo-de-caudales/
-│
-├── 📄 README.md .......................... Descripción general del proyecto
-├── 📄 .gitignore ......................... Archivos ignorados por git
-│
-├── 📁 frontend/ .......................... APLICACIÓN WEB (Cliente)
-│   │
-│   ├── 📄 index.html ..................... HTML principal (punto de entrada)
-│   ├── 📄 STRUCTURE.md ................... Documentación de módulos JS
-│   │
-│   ├── 📁 css/
-│   │   └── 📄 styles.css ................ Estilos CSS responsivos
-│   │
-│   └── 📁 js/ ........................... Módulos JavaScript ES6
-│       │
-│       ├── 📄 main.js ................... Coordinador principal
-│       │                            ↓ Inicializa la aplicación
-│       │                            ↓ Maneja eventos principales
-│       │
-│       ├── 📄 config.js ................. Constantes centralizadas
-│       │                            ├─ Ubicación geográfica
-│       │                            ├─ Tabla de volumen
-│       │                            ├─ Niveles de operación
-│       │                            ├─ Potencia de generadores
-│       │                            └─ Parámetros de simulación
-│       │
-│       ├── 📄 api.js .................... Gestión de API externa
-│       │                            ├─ fetchClimateData() [Open-Meteo]
-│       │                            ├─ extractRainfallData()
-│       │                            ├─ extractCurrentWeather()
-│       │                            ├─ extractDailyWeather()
-│       │                            └─ extractHourlyWeather()
-│       │
-│       ├── 📄 calculator.js ............ Motor de cálculos
-│       │                            ├─ Conversiones (nivel ↔ volumen)
-│       │                            ├─ Cálculo de caudales
-│       │                            ├─ Generación de patrones
-│       │                            ├─ Evaluación de escenarios
-│       │                            ├─ Simulación de 24 horas
-│       │                            └─ Validación de viabilidad
-│       │
-│       └── 📄 ui.js ..................... Interfaz de usuario
-│                                ├─ getFormInputs()
-│                                ├─ validateInputs()
-│                                ├─ updateHeroCard()
-│                                ├─ updateHourlyForecast()
-│                                ├─ updateWeatherDetails()
-│                                ├─ fillResultsTable()
-│                                ├─ recalculateFromRow()
-│                                └─ setButtonLoading()
-│
-└── 📁 backend/ ........................... Documentación sin implementación activa
-    │
-    ├── 📄 README.md
-    └── 📄 IMPLEMENTATION.md
+```text
+CORA
+  -> ASP.NET Core
+  -> PostgreSQL
+  -> ASP.NET Core
+  -> Frontend
 ```
 
-## 🔄 Flujo de Datos
+El navegador no consulta CORA directamente. Todo dato CORA pasa por el backend C# y queda guardado en PostgreSQL. La Perla no usa CORA en esta version; usa el metodo local documentado por Hidrosacpur.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      FRONTEND (index.html)                   │
-│         (Interfaz de Usuario - HTML + CSS + JS)            │
-└──────────────┬───────────────────────────────────────────────┘
-               │
-        ┌──────▼───────────────────┐
-        │    main.js (Coordinador) │
-        │  - Inicialización        │
-        │  - Actualización c/10min │
-        │  - Manejo de eventos     │
-        └──┬──────────┬──────────┬─┘
-           │          │          │
-    ┌──────▼───┐   ┌──▼──────┐ ┌▼────────┐
-    │  api.js   │   │calc..   │ │  ui.js   │
-    │           │   │js       │ │          │
-    │ Open-     │   │ Motor   │ │ Interfaz │
-    │ Meteo     │   │ Matemá- │ │ del DOM  │
-    │ Climate   │   │tico     │ │          │
-    └─────────────  └─────────┘ └──────────┘
-         ▲              ▲           ▲
-         └──────────────┴───────────┴─────────────┬
-                                                   │
-                                            Importan config.js
-                                            (Constantes)
+## Simulacion
 
-    ┌─────────────────────────────────────────────┐
-    │   BACKEND (Futuro - Node.js / Python)       │
-    │   API REST para persistencia de datos       │
-    │   - Guardar simulaciones                    │
-    │   - Sin backend activo                      │
-    │   - Reportes                                │
-    └─────────────────────────────────────────────┘
+```text
+Frontend envia planta y nivel inicial
+  -> POST /api/simulacion
+  -> C# elige simulador segun planta
+  -> El Cafetal lee QE del dia anterior desde PostgreSQL
+  -> La Perla calcula entrada con Manning
+  -> C# consulta lluvia horaria
+  -> C# suma escorrentia al QE
+  -> C# calcula potencia, salida, volumen y nivel
+  -> Frontend pinta la tabla
 ```
 
-## 📊 Flujo de Ejecución
+La regla de lluvia es:
 
-### 1️⃣ Carga Inicial
-```
-DOMContentLoaded
-    ↓
-main.js inicia
-    ↓
-fetchClimateData() [api.js]
-    ↓
-Procesa datos con calculator.js
-    ↓
-Actualiza UI con ui.js
-    ↓
-Inicia actualización automática cada 10min
+```text
+Q_lluvia = C * lluvia_mm * area_m2 / 1000 / 3600
 ```
 
-### 2️⃣ Entrada del Usuario
-```
-Usuario hace clic en "Calcular"
-    ↓
-handleManualCalculation() [main.js]
-    ↓
-validateInputs() [ui.js]
-    ↓
-fetchClimateData() [api.js]
-    ↓
-simulateDay() [calculator.js]
-    ↓
-fillResultsTable() [ui.js]
-```
+Donde:
 
-### 3️⃣ Edición en Tabla
-```
-Usuario doble-clic en celda editable
-    ↓
-enableTableEditing() [ui.js]
-    ↓
-Usuario ingresa nuevo valor
-    ↓
-evaluateScenario() [calculator.js]
-    ↓
-recalculateFromRow() [ui.js]
-    ↓
-Tabla se actualiza automáticamente
-```
+- `lluvia_mm`: precipitacion horaria.
+- `area_m2`: area configurada o estimada.
+- `C`: coeficiente de escorrentia.
+- `/1000`: convierte litros a metros cubicos.
+- `/3600`: convierte volumen horario a m3/s.
 
-## 🗂️ Importancias por Archivo
+## Responsabilidades por archivo
 
-### config.js ⭐⭐⭐⭐⭐
-- **Criticidad**: Máxima
-- **Cambios**: Editar aquí las constantes del proyecto
-- **Importado por**: Todos los demás módulos
+### Backend
 
-### api.js ⭐⭐⭐⭐
-- **Criticidad**: Alta (solo si usas Open-Meteo)
-- **Cambios**: Para cambiar API o agregar fuentes
-- **Dependencias**: Requiere internet
+- `CaudalesBackend.csproj`: define el proyecto ASP.NET Core y la dependencia `Npgsql`.
+- `Program.cs`: arranque del servidor. Debe quedarse pequeno.
+- `Configuration/`: carga `.env`, parsea variables y arma `AppSettings`.
+- `Clients/`: contiene `CoraClient` y `WeatherClient`.
+- `Repositories/`: contiene `CoraRepository`, la unica clase que escribe y lee PostgreSQL.
+- `Services/`: contiene `CoraSyncService`, `SimulacionService` y `SimuladorCaudales`.
+- `Services/SimuladorLaPerla.cs`: Manning, tabla de embalse La Perla y potencia/eficiencia del documento.
+- `Models/`: contiene records/DTOs usados por API, CORA y simulacion.
+- `Endpoints/`: contiene las rutas HTTP.
+- `Extensions/`: registra servicios y configura archivos estaticos.
+- `Infrastructure/`: utilidades compartidas como `HttpJsonFetcher`.
+- `sql/create_database.sql`: creacion inicial de base y usuario.
+- `sql/init.sql`: creacion de tabla `datos_cora`.
 
-### calculator.js ⭐⭐⭐⭐⭐
-- **Criticidad**: Máxima
-- **Cambios**: Para ajustar lógica de simulación
-- **Rendimiento**: Todo lo matemático aquí
+### Frontend
 
-### ui.js ⭐⭐⭐
-- **Criticidad**: Alta
-- **Cambios**: Para modificar interfaz
-- **DOM**: Gestiona interactividad
+- `index.html`: estructura visual.
+- `css/styles.css`: estilos.
+- `js/config.js`: ubicacion, intervalos, endpoints y codigos de clima.
+- `js/api.js`: llamadas HTTP al backend C#.
+- `js/ui.js`: renderizado de clima, embalse y resultados.
+- `js/main.js`: coordinacion de actualizaciones.
 
-### main.js ⭐⭐⭐⭐
-- **Criticidad**: Alta
-- **Cambios**: Para agregar nuevos flujos
-- **Orquestación**: Coordina todo
+## Sincronizacion CORA
 
-## 🎯 Dónde Editar Según Necesidad
+`CoraSyncService` es un `BackgroundService`. Corre dentro del backend aunque la pagina web no este abierta.
 
-| Necesidad | Archivo | Líneas aprox |
-|-----------|---------|-------------|
-| Cambiar ubicación | config.js | 8-13 |
-| Cambiar niveles | config.js | 30-35 |
-| Cambiar potencia | config.js | 40-45 |
-| Editar tabla volumen | config.js | 18-28 |
-| Cambiar API | api.js | Toda |
-| Cambiar lógica matemática | calculator.js | 50+ |
-| Cambiar UI/Estilos | ui.js + styles.css | Varias |
-| Agregar funcionalidad | main.js | 30+ |
+Al arrancar:
 
-## 📈 Estadísticas del Código
-
-| Métrica | Valor |
-|---------|-------|
-| Total de funciones | 50+ |
-| Líneas de código | 2000+ |
-| Módulos | 5 |
-| Constantes | 100+ |
-| Líneas CSS | 300+ |
-
-## 🔗 Relaciones entre Módulos
-
-```
-config.js
-    ↓
-Importado por: api.js, calculator.js, ui.js, main.js
-
-api.js
-    ↓ Importa: config.js
-    ↓ Importado por: main.js
-
-calculator.js
-    ↓ Importa: config.js
-    ↓ Importado por: main.js
-
-ui.js
-    ↓ Importa: config.js, calculator.js
-    ↓ Importado por: main.js
-
-main.js
-    ↓ Importa: TODOS LOS ANTERIORES
-    ↓ Punto de entrada: index.html
+```text
+si CORA_SYNC_ON_START=true -> sincroniza inmediatamente
 ```
 
-## 💾 Persistencia de Datos
+Luego:
 
-### Actual (Frontend)
-- ✅ Datos en memoria (RAM del navegador)
-- ✅ Se pierden al recargar
-- ✅ Rápido y sin servidor
+```text
+cada CORA_SYNC_MINUTES -> consulta CORA -> guarda o actualiza PostgreSQL
+```
 
-### Futuro (Con Backend)
-- 📝 Guardar en base de datos
-- 📝 Histórico de simulaciones
-- 📝 Compartir resultados
-- 📝 Integración directa con APIs externas desde el frontend
+## Puerto unico
 
-## 📚 Cómo Aprender el Código
+El backend sirve tambien los archivos de `frontend`, por eso se usa solo:
 
-### Día 1: Entender la estructura
-1. Lee este archivo
-2. Abre index.html en navegador
-3. Lee config.js (solo constantes)
+```text
+http://localhost:4000
+```
 
-### Día 2: Entender el flujo
-1. Lee main.js (estructura, no detalles)
-2. Lee ui.js (para entender UI)
-3. Prueba editar config.js valores
+No hace falta abrir un servidor separado en `3000`.
 
-### Día 3: Entender la matemática
-1. Lee calculator.js
-2. Entiende levelToVolume y volumeToLevel
-3. Entiende simulateDay()
+## Por que queda JavaScript
 
-### Día 4: Entender la API
-1. Lee api.js
-2. Entiende fetchClimateData()
-3. Revisa Open-Meteo docs
+El navegador ejecuta HTML, CSS y JavaScript. Por eso `api.js`, `main.js`, `ui.js` y `config.js` siguen existiendo:
 
-### Día 5: Proyecto completo
-1. Modifica algo pequeño
-2. Ve el resultado
-3. Experimenta
+- `api.js`: llama al backend C#.
+- `main.js`: coordina eventos del navegador.
+- `ui.js`: actualiza el DOM.
+- `config.js`: guarda endpoints, codigos de clima y constantes visuales.
 
----
-
-**Nota**: Este mapa se actualiza conforme cambia el código.
-**Última actualización**: 11 de Mayo, 2026
+La logica de negocio ya no esta en JavaScript. Los calculos, CORA, PostgreSQL y la sincronizacion viven en C#.

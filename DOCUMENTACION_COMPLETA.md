@@ -28,25 +28,20 @@ El proyecto no hace lo siguiente:
 - No predice lluvia por modelo propio; solo consume Open-Meteo.
 - No consulta CORA directamente desde el frontend. CORA debe pasar por el backend y PostgreSQL.
 - No inventa un patron de caudal si faltan horas en la base de datos.
-- No ejecuta el backend si no se abre `npm start` o `start-backend.cmd`.
+- No ejecuta el backend si no se abre `dotnet run` o `start-backend.cmd`.
 
 ## 3. Estructura del proyecto
 
 ```text
 Calculo-de-caudales/
 ├── backend/
-│   ├── src/
-│   │   ├── server.js
-│   │   ├── db.js
-│   │   ├── coraClient.js
-│   │   ├── coraRepository.js
-│   │   └── scheduler.js
+│   ├── Program.cs
+│   ├── CaudalesBackend.csproj
 │   ├── sql/
 │   │   ├── create_database.sql
 │   │   └── init.sql
 │   ├── .env
 │   ├── .env.example
-│   ├── package.json
 │   ├── start-backend.cmd
 │   └── start-backend.ps1
 ├── frontend/
@@ -56,7 +51,6 @@ Calculo-de-caudales/
 │   └── js/
 │       ├── config.js
 │       ├── api.js
-│       ├── calculator.js
 │       ├── ui.js
 │       └── main.js
 ├── README.md
@@ -70,9 +64,9 @@ El flujo actual es:
 
 ```text
 API CORA
-  -> backend Node.js
+  -> backend C# ASP.NET Core
   -> PostgreSQL
-  -> backend Node.js
+  -> backend C# ASP.NET Core
   -> frontend
   -> simulacion de 24 horas
 ```
@@ -92,36 +86,27 @@ Ya no se necesita abrir un servidor adicional en el puerto 3000.
 
 ## 5. Backend
 
-El backend esta hecho con Node.js y Express.
+El backend esta hecho con C# y ASP.NET Core.
 
-### 5.1 `backend/package.json`
+### 5.1 `backend/CaudalesBackend.csproj`
 
-Define el proyecto backend y sus dependencias.
+Define el proyecto .NET y sus dependencias.
 
 Dependencias principales:
 
-- `express`: crea el servidor HTTP.
-- `cors`: permite peticiones entre origenes si fueran necesarias.
-- `dotenv`: lee variables desde `.env`.
-- `node-cron`: programa tareas automaticas cada hora.
-- `pg`: conecta Node.js con PostgreSQL.
+- `Microsoft.NET.Sdk.Web`: servidor ASP.NET Core.
+- `Npgsql`: conexion de C# con PostgreSQL.
 
-Scripts:
-
-```json
-"start": "node src/server.js"
-```
-
-Eso significa que al ejecutar:
+El proyecto se ejecuta con:
 
 ```powershell
-npm start
+dotnet run --project CaudalesBackend.csproj
 ```
 
-se inicia:
+Tambien puedes usar:
 
-```text
-backend/src/server.js
+```powershell
+.\start-backend.cmd
 ```
 
 ### 5.2 `backend/.env`
@@ -130,10 +115,10 @@ Contiene configuracion sensible/local:
 
 ```env
 PORT=4000
-DATABASE_URL=postgres://caudales_user:Eduardo00@localhost:5432/calculo_caudales
+DATABASE_URL=postgres://caudales_user:TU_PASSWORD@localhost:5432/calculo_caudales
 CORA_API_URL=...
-CORA_API_CANTIDAD=24
-CORA_SYNC_CRON=0 * * * *
+CORA_API_CANTIDAD=72
+CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ```
 
@@ -142,19 +127,18 @@ Que significa:
 - `PORT=4000`: el servidor corre en el puerto 4000.
 - `DATABASE_URL`: cadena de conexion a PostgreSQL.
 - `CORA_API_URL`: URL original de CORA.
-- `CORA_API_CANTIDAD=24`: pide 24 lecturas.
-- `CORA_SYNC_CRON=0 * * * *`: sincroniza cada hora en el minuto 0.
+- `CORA_API_CANTIDAD=72`: pide 72 lecturas para recuperar el dia anterior aunque el backend arranque tarde.
+- `CORA_SYNC_MINUTES=10`: sincroniza cada 10 minutos.
 - `CORA_SYNC_ON_START=true`: sincroniza tambien al arrancar el backend.
 
-### 5.3 `backend/src/server.js`
+### 5.3 `backend/Program.cs`
 
 Es el archivo principal del backend.
 
 Hace esto:
 
 - Carga variables de `.env`.
-- Crea la aplicacion Express.
-- Activa JSON y CORS.
+- Crea la aplicacion ASP.NET Core.
 - Define endpoints de API.
 - Sirve la carpeta `frontend`.
 - Inicia el sincronizador automatico de CORA.
@@ -164,7 +148,7 @@ Endpoints:
 
 ```text
 GET  /api/salud
-GET  /api/cora/datos?cantidad=24
+GET  /api/cora/datos?cantidad=72
 GET  /api/cora/patron-entrada
 POST /api/cora/sincronizar
 GET  /
@@ -178,21 +162,11 @@ Detalle:
 - `/api/cora/sincronizar`: fuerza una sincronizacion manual con CORA.
 - `/`: entrega `frontend/index.html`.
 
-### 5.4 `backend/src/db.js`
+### 5.4 Conexion PostgreSQL
 
-Se encarga de conectar con PostgreSQL.
+`Program.cs` registra un `NpgsqlDataSource`, que reutiliza conexiones PostgreSQL.
 
-Usa:
-
-```js
-new Pool({
-  connectionString: process.env.DATABASE_URL
-})
-```
-
-`Pool` permite reutilizar conexiones en lugar de abrir una conexion nueva para cada consulta.
-
-La funcion `verificarConexion()` ejecuta:
+El endpoint `/api/salud` ejecuta:
 
 ```sql
 SELECT NOW() AS ahora
@@ -200,15 +174,15 @@ SELECT NOW() AS ahora
 
 Sirve para saber si PostgreSQL esta disponible.
 
-### 5.5 `backend/src/coraClient.js`
+### 5.5 Cliente CORA en C#
 
-Se encarga de hablar con la API CORA.
+La clase `CoraClient`, dentro de `Program.cs`, se encarga de hablar con la API CORA.
 
 Hace esto:
 
 - Lee `CORA_API_URL`.
 - Agrega el parametro `cantidad`.
-- Hace `fetch` a CORA.
+- Usa `HttpClient` para consultar CORA.
 - Recibe JSON.
 - Convierte la respuesta a una lista.
 - Normaliza cada registro.
@@ -244,9 +218,9 @@ Si CORA trae `potenciaActiva` o `potencia_activa`, el sistema lo guarda como:
 potencia_activa
 ```
 
-### 5.6 `backend/src/coraRepository.js`
+### 5.6 Repositorio PostgreSQL en C#
 
-Es la capa que habla con PostgreSQL.
+La clase `CoraRepository`, dentro de `Program.cs`, es la capa que habla con PostgreSQL.
 
 Funciones:
 
@@ -264,11 +238,11 @@ DO UPDATE
 
 Eso evita duplicados. Si ya existe un registro con la misma fecha y hora, se actualiza.
 
-### 5.7 `backend/src/scheduler.js`
+### 5.7 Servicio automatico en C#
 
-Programa la sincronizacion automatica.
+La clase `CoraSyncService`, dentro de `Program.cs`, programa la sincronizacion automatica.
 
-Cada hora:
+Cada 10 minutos:
 
 ```text
 consulta CORA -> normaliza -> guarda en PostgreSQL
@@ -394,7 +368,7 @@ Define la estructura visual:
 IDs importantes:
 
 - `nivelInicial`: entrada del nivel inicial.
-- `caudalBase`: campo opcional; ya no define el patron principal.
+- El frontend envia solo el nivel inicial; el patron de entrada sale de `QE` en PostgreSQL.
 - `botonCalcular`: boton para simular.
 - `tablaEmbalseReal`: tabla de datos reales.
 - `tablaResultados`: tabla de simulacion.
@@ -450,28 +424,37 @@ Importante:
 
 `obtenerDatosEmbalse()` ya no consulta CORA directo. Consulta el backend local.
 
-### 7.5 `frontend/js/calculator.js`
+### 7.5 Calculos en C#
 
-Contiene la logica matematica.
+La logica matematica ya no vive en JavaScript. Fue migrada a:
 
-Funciones:
+```text
+backend/Services/SimuladorCaudales.cs
+```
 
-- `redondear2(valor)`: redondea a 2 decimales.
-- `nivelAVolumen(nivel)`: convierte nivel a volumen usando interpolacion.
-- `volumenANivel(volumen)`: convierte volumen a nivel usando interpolacion.
-- `calcularCaudalSalida(potenciaGenerada)`: calcula caudal de salida desde potencia.
-- `calcularVolumenTurbinado(caudalSalida)`: convierte caudal a volumen horario.
-- `calcularFactorClimaPorLluvia(lluvia)`: aumenta caudal si hay lluvia.
-- `generarPatronEntrada(...)`: usa QE de base de datos y lluvia para formar caudales de entrada.
-- `evaluarEscenario(...)`: calcula resultado de una hora con cierta potencia.
-- `calcularPromedioEntradaProyectada(...)`: promedio de entrada hacia adelante.
-- `esViableParaBloqueObligatorio(...)`: revisa si operar no baja del minimo.
-- `encontrarPotenciaObligatoriaConstanteMaxima(...)`: busca potencia viable para horas obligatorias.
-- `simularDia(...)`: ejecuta la simulacion completa de 24 horas.
+Incluye:
 
-Regla clave:
+- conversion nivel -> volumen,
+- conversion volumen -> nivel,
+- caudal de salida,
+- volumen turbinado,
+- patron de entrada desde QE de PostgreSQL,
+- aporte directo de lluvia por escorrentia,
+- viabilidad del bloque obligatorio,
+- seleccion de potencia,
+- simulacion completa de 24 horas.
 
-Si falta QE para una hora, `generarPatronEntrada` lanza error. Esto protege la simulacion contra datos incompletos.
+La lluvia ya no pasa por un factor multiplicador. Se suma como caudal:
+
+```text
+Q_lluvia = C * lluvia_mm * area_m2 / 1000 / 3600
+```
+
+Donde:
+
+- `C` es el coeficiente de escorrentia.
+- `1 mm = 1 litro/m2`.
+- `area_m2` se toma de `ESCORRENTIA_AREA_M2` si esta configurada; si no, se estima desde la tabla volumen/nivel.
 
 ### 7.6 `frontend/js/ui.js`
 
@@ -552,7 +535,7 @@ Debe responder `ok: true`.
 Datos CORA:
 
 ```text
-http://localhost:4000/api/cora/datos?cantidad=24
+http://localhost:4000/api/cora/datos?cantidad=72
 ```
 
 Patron QE:
@@ -573,12 +556,12 @@ La organizacion actual es buena para el tamano del proyecto:
 
 - `backend` separado de `frontend`.
 - SQL separado en `backend/sql`.
-- Logica de base de datos separada en `coraRepository.js`.
-- Consumo de CORA separado en `coraClient.js`.
-- Tarea automatica separada en `scheduler.js`.
+- Backend C# centralizado en `Program.cs`.
+- SQL separado en `backend/sql`.
+- Configuracion local separada en `.env`.
 - Configuracion del frontend en `config.js`.
 - APIs del navegador en `api.js`.
-- Calculos matematicos en `calculator.js`.
+- Calculos matematicos en `backend/Services/SimuladorCaudales.cs` y `backend/Services/SimuladorLaPerla.cs`.
 - Interfaz visual en `ui.js`.
 - Coordinacion en `main.js`.
 
@@ -601,11 +584,10 @@ Recomendaciones:
 Este proyecto ya funciona como una aplicacion web con backend y base de datos:
 
 ```text
-CORA se guarda en PostgreSQL.
+ASP.NET Core consulta CORA y guarda en PostgreSQL.
 PostgreSQL alimenta el frontend.
 QE del dia anterior alimenta la simulacion.
 Open-Meteo aporta clima y lluvia.
-calculator.js simula 24 horas.
+Los simuladores de `backend/Services/` calculan las 24 horas.
 ui.js muestra todo en pantalla.
 ```
-

@@ -1,22 +1,44 @@
-# Backend
+# Implementacion backend C#
 
-Implementación activa con Node.js, Express y PostgreSQL.
+El backend activo esta implementado en ASP.NET Core.
 
 ## Flujo
 
 ```text
-API CORA -> backend -> PostgreSQL -> frontend
+API CORA -> ASP.NET Core -> PostgreSQL -> ASP.NET Core -> frontend
 ```
 
-El backend consulta CORA automáticamente cada hora y guarda o actualiza registros por `fecha` + `hora`.
+El frontend no consulta CORA directamente. Toda lectura real del embalse y todo patron de entrada `QE` sale de PostgreSQL a traves del backend.
 
-El frontend no consulta CORA directamente. Toda lectura real del embalse y todo patrón de entrada `QE` sale de PostgreSQL a través del backend.
+## Responsabilidades de `Program.cs`
 
-## Tabla principal
+- Carga variables desde `.env`.
+- Convierte `DATABASE_URL` estilo `postgres://...` al formato requerido por Npgsql.
+- Configura el puerto `4000`.
+- Registra `NpgsqlDataSource`.
+- Consulta CORA con `HttpClient`.
+- Normaliza campos variables de CORA.
+- Inserta/actualiza registros en PostgreSQL.
+- Sirve `../frontend` como sitio estatico.
+- Ejecuta un `BackgroundService` para sincronizar CORA periodicamente.
+
+## Proyeccion de caudal de entrada
+
+El patron fijo del frontend fue retirado. La simulacion utiliza:
+
+```text
+GET /api/cora/patron-entrada
+```
+
+Ese endpoint toma los valores `QE` del dia anterior desde las `00:00` hasta las `23:00`.
+
+Si falta alguna hora, el backend devuelve `completo: false` y el frontend no ejecuta la simulacion hasta tener 24 registros horarios.
+
+## Base de datos
 
 Ver `sql/init.sql`.
 
-Campos:
+Campos principales:
 
 - `fecha`
 - `hora`
@@ -27,19 +49,3 @@ Campos:
 - `potencia_activa`
 - `clima`
 - `datos_originales`
-
-## Archivos
-
-- `src/server.js`: API HTTP.
-- `src/db.js`: conexión a PostgreSQL.
-- `src/coraClient.js`: consumo y normalización de datos CORA.
-- `src/coraRepository.js`: inserción/consulta en PostgreSQL.
-- `src/scheduler.js`: sincronización automática cada hora.
-- `sql/create_database.sql`: creación de base y usuario.
-- `sql/init.sql`: creación de tabla e índices.
-
-## Proyección de caudal de entrada
-
-El patrón fijo del frontend fue retirado. La simulación utiliza `GET /api/cora/patron-entrada`, que toma los valores `QE` del día anterior desde las `00:00` hasta las `23:00`.
-
-Si falta alguna hora, el backend marca `completo: false` y el frontend no ejecuta la simulación hasta que la base tenga los 24 registros horarios.

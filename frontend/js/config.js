@@ -12,42 +12,24 @@ export const UBICACION = {
   longitud: -90.07007
 };
 
-// ============================================
-// TABLA DE VOLUMEN - NIVEL (msnm)
-// ============================================
-export const tabla_volumen = [
-  [0.00, 770.00],
-  [2297.00, 770.50],
-  [5167.70, 771.00],
-  [8623.90, 771.50],
-  [12769.60, 772.00],
-  [17624.49, 772.50],
-  [23241.57, 773.00],
-  [29304.76, 773.50],
-  [35764.33, 774.00],
-  [42637.14, 774.50],
-  [49924.80, 775.00],
-  [57672.94, 775.50],
-  [65881.95, 776.00],
-  [74567.19, 776.50],
-  [83801.42, 777.00],
-  [93664.56, 777.50],
-  [104784.00, 778.00]
-];
-
-export const TABLA_VOLUMEN_ALIAS = tabla_volumen;
-
-// ============================================
-// NIVELES DE OPERACIÓN (msnm)
-// ============================================
-export const niveles_operacion = {
-  minimo: 773.50,      // Nivel mínimo permitido
-  inicio: 777.50,        // Nivel de inicio de operación
-  rebalse: 777.75,     // Nivel de rebalse
-  maximo: 778.00       // Nivel máximo del embalse
+export const PLANTAS = {
+  cafetal: {
+    id: "cafetal",
+    nombre: "El Cafetal",
+    nivelMinimo: 770,
+    nivelMaximo: 778,
+    nivelEjemplo: "775.80",
+    usaCora: true
+  },
+  "la-perla": {
+    id: "la-perla",
+    nombre: "La Perla",
+    nivelMinimo: 595,
+    nivelMaximo: 600,
+    nivelEjemplo: "598.50",
+    usaCora: false
+  }
 };
-
-export const NIVELES_OPERACION_ALIAS = niveles_operacion;
 
 // ============================================
 // CONFIGURACIÓN DE HORAS OBLIGATORIAS
@@ -64,63 +46,17 @@ export const horas_obligatorias = {
 export const HORAS_OBLIGATORIAS = horas_obligatorias;
 
 // ============================================
-// POTENCIA DE GENERACIÓN (MW)
-// ============================================
-export const potencia = {
-  unidad1: 4.2,               // Potencia máxima de la unidad 1 (MW)
-  unidad2: 4.2,               // Potencia máxima de la unidad 2 (MW)
-  // horasMinimasUnidad1/2: restricciones de tiempo de operación mínima por unidad
-  horasMinimasUnidad1: 2,
-  horasMinimasUnidad2: 2,
-  horasMinimasAntesUnidad2: 2,
-  // Opciones de potencia combinada que se pueden aplicar durante las horas obligatorias
-  // Cada valor representa potencia total (MW) con una o dos unidades encendidas.
-  // El simulador intentará elegir la potencia viable de esta lista que mantenga
-  // el nivel por encima del mínimo. Mantén una opción máxima (p. ej. 8.3) si aplica.
-  opcionesObligatoriasCombinadas: Array.from(
-    { length: Math.round((8.3 - 4.2) * 10) + 1 },
-    (_, i) => Math.round((4.2 + i * 0.1) * 10) / 10
-  ).sort((a, b) => a - b)
-};
-
-export const POTENCIA_ALIAS = potencia;
-
-// ============================================
-// PARÁMETROS DE SIMULACIÓN
-// ============================================
-export const PARAMETROS_SIMULACION_ALIAS = {
-  umbralCaudalAlto: 2.20,           // m3/s
-  margenPosteriorObligatorio: 0.15,           // msnm
-  horasProyeccion: 5,                // Horas a proyectar para la toma de decisiones
-  nivelMaximoProyeccion: 778.50,        // Nivel máximo permitido en proyecciones para evitar alarmas falsas
-  nivelMinimoProyeccion: 773.00         // Nivel mínimo permitido en proyecciones para evitar alarmas falsas
-};
-
-export const parametros_simulacion = PARAMETROS_SIMULACION_ALIAS;
-
-// ============================================
-// AJUSTES HORARIOS DE CAUDAL NETO (m3/s)
-// ============================================
-// Calibración contra datos reales observados:
-// 19:00 -> 20:00 baja de 775.25 a 774.57
-// 20:00 -> 21:00 baja de 774.57 a 773.90
-export const AJUSTES_CAUDAL_NETO = {
-  19: -0.53,
-  20: -0.26,
-  21: 0.81
-};
-
-// ============================================
 // API ENDPOINTS
 // ============================================
 export const API = {
   clima: {
-    urlBase: "https://api.open-meteo.com/v1/forecast",
+    urlBase: "/api/clima",
     tiempoEspera: 10000
   },
   embalse: {
     urlBackend: "/api/cora/datos",
     urlPatronEntrada: "/api/cora/patron-entrada",
+    urlSimulacion: "/api/simulacion",
     cantidadUltimos: 24,
     tiempoEspera: 10000
   }

@@ -20,6 +20,8 @@ Thumbs.db
 dist/
 build/
 *.build
+bin/
+obj/
 
 # Logs
 logs/

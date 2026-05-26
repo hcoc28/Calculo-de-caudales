@@ -7,12 +7,12 @@ import {
   obtenerDatosClima,
   obtenerDatosEmbalse,
   obtenerPatronEntradaEmbalse,
+  obtenerSimulacion,
   extraerClimaActual,
   extraerClimaDiario,
   extraerClimaHorario,
   extraerDatosLluvia
 } from './api.js?v=20260512-calibrated-patterns';
-import { simularDia, redondear2 } from './calculator.js?v=20260512-calibrated-patterns';
 import {
   obtenerEntradasFormulario,
   validarEntradas,
@@ -24,12 +24,18 @@ import {
   llenarTablaResultados,
   establecerBotonCargando,
   actualizarDatosEmbalse,
-  establecerEstadoEmbalse
+  establecerEstadoEmbalse,
+  aplicarPlanta
 } from './ui.js?v=20260512-calibrated-patterns';
-import { HORAS_OBLIGATORIAS } from './config.js?v=20260512-calibrated-patterns';
+import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260512-calibrated-patterns';
 
 let patronEntradaReal = null;
 let fechaPatronEntrada = null;
+let plantaActual = "cafetal";
+
+function redondear2(valor) {
+  return Math.round(valor * 100) / 100;
+}
 
 function patronEntradaCompleto(patron) {
   return Array.isArray(patron)
@@ -53,6 +59,13 @@ async function actualizarPatronEntrada() {
  * Actualiza datos reales de producción y embalse
  */
 async function actualizarPanelEmbalse() {
+  const planta = PLANTAS[plantaActual] ?? PLANTAS.cafetal;
+  if (!planta.usaCora) {
+    actualizarDatosEmbalse([]);
+    establecerEstadoEmbalse("Método local");
+    return;
+  }
+
   try {
     establecerEstadoEmbalse("Actualizando...");
     const datosEmbalse = await obtenerDatosEmbalse();
@@ -86,15 +99,10 @@ async function actualizarTodo() {
     establecerEstadoClima("Clima: no disponible, simulando sin lluvia");
     establecerUltimaActualizacion();
 
-    const datosLluvia = Array(HORAS_OBLIGATORIAS.simulacion).fill(0);
-    if (!validarEntradas()) return;
-    if (!patronEntradaReal) {
-      establecerEstadoEmbalse("Patrón QE incompleto");
-      return;
-    }
+    if (!validarEntradas(plantaActual)) return;
 
-    const { nivelInicial, caudalBase } = obtenerEntradasFormulario();
-    const { resultados } = simularDia(nivelInicial, caudalBase, datosLluvia, patronEntradaReal);
+    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+    const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
     llenarTablaResultados(resultados);
   }
 }
@@ -119,31 +127,30 @@ async function renderizarDesdeDatosClima(datosClima) {
   establecerUltimaActualizacion();
 
   // Ejecutar simulación si inputs son válidos
-  if (!validarEntradas()) return;
-  if (!patronEntradaReal) {
-    establecerEstadoEmbalse("Patrón QE incompleto");
-    return;
-  }
+  if (!validarEntradas(plantaActual)) return;
 
-  const { nivelInicial, caudalBase } = obtenerEntradasFormulario();
-  const { resultados } = simularDia(nivelInicial, caudalBase, datosLluvia, patronEntradaReal);
+  const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+  const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
   llenarTablaResultados(resultados);
-  establecerEstadoEmbalse(`Patrón QE ${fechaPatronEntrada}`);
+  if ((PLANTAS[plantaActual] ?? PLANTAS.cafetal).usaCora) {
+    establecerEstadoEmbalse(`Patrón QE ${fechaPatronEntrada}`);
+  }
 }
 
 /**
  * Cálculo manual iniciado por el usuario
  */
 async function manejarCalculoManual() {
-  const { nivelInicial, caudalBase } = obtenerEntradasFormulario();
+  const planta = PLANTAS[plantaActual] ?? PLANTAS.cafetal;
+  const { nivelInicial } = obtenerEntradasFormulario();
 
   if (isNaN(nivelInicial)) {
     alert("Ingresa un nivel inicial válido.");
     return;
   }
 
-  if (nivelInicial < 770 || nivelInicial > 778) {
-    alert("El nivel inicial debe estar entre 770 y 778 msnm.");
+  if (nivelInicial < planta.nivelMinimo || nivelInicial > planta.nivelMaximo) {
+    alert(`El nivel inicial debe estar entre ${planta.nivelMinimo} y ${planta.nivelMaximo} msnm.`);
     return;
   }
 
@@ -157,14 +164,7 @@ async function manejarCalculoManual() {
   } catch (error) {
     console.error('Error en cálculo manual:', error);
     establecerEstadoClima("Clima: no disponible, simulando sin lluvia");
-
-    const datosLluvia = Array(HORAS_OBLIGATORIAS.simulacion).fill(0);
-    if (!patronEntradaReal) {
-      establecerEstadoEmbalse("Patrón QE incompleto");
-      return;
-    }
-    const { resultados } = simularDia(nivelInicial, caudalBase, datosLluvia, patronEntradaReal);
-    llenarTablaResultados(resultados);
+    establecerEstadoEmbalse(error.message ?? "Simulación no disponible");
   } finally {
     establecerBotonCargando(false);
   }
@@ -175,6 +175,19 @@ async function manejarCalculoManual() {
  */
 document.addEventListener("DOMContentLoaded", async () => {
   const botonCalcular = document.getElementById("botonCalcular");
+  aplicarPlanta(plantaActual);
+
+  document.querySelectorAll(".boton-planta").forEach(boton => {
+    boton.addEventListener("click", async () => {
+      plantaActual = boton.dataset.planta ?? "cafetal";
+      patronEntradaReal = null;
+      fechaPatronEntrada = null;
+      aplicarPlanta(plantaActual);
+      boton.closest(".menu-plantas")?.removeAttribute("open");
+      llenarTablaResultados([]);
+      await actualizarTodo();
+    });
+  });
 
   if (botonCalcular) {
     botonCalcular.addEventListener("click", manejarCalculoManual);

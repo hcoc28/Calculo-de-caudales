@@ -3,37 +3,38 @@
 }
 
 :root {
-  --bg: #081225;
-  --bg-2: #0e1a38;
-  --panel: rgba(14, 26, 56, 0.78);
-  --panel-strong: rgba(13, 23, 48, 0.92);
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #eef4ff;
-  --muted: #aeb8d1;
-  --accent: #6aa7ff;
-  --accent-2: #4d89ff;
-  --ok: #63e6a8;
-  --bad: #ff7d7d;
-  --gold: #ffcc66;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  --fondo: #07111f;
+  --fondo-secundario: #0d1829;
+  --panel: rgba(17, 29, 48, 0.88);
+  --panel-fuerte: rgba(12, 22, 37, 0.96);
+  --borde: rgba(210, 225, 255, 0.13);
+  --texto: #eef4ff;
+  --texto-suave: #aebbd0;
+  --acento: #69b7ff;
+  --acento-2: #4fdfc0;
+  --correcto: #63e6a8;
+  --alerta: #ffcf66;
+  --error: #ff7d7d;
+  --sombra: 0 18px 45px rgba(0, 0, 0, 0.32);
 }
 
 html, body {
   margin: 0;
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
-  color: var(--text);
-  background: radial-gradient(circle at top, #132c66 0%, #0a1630 45%, #07101f 100%);
+  color: var(--texto);
+  background:
+    linear-gradient(135deg, rgba(79, 223, 192, 0.08), transparent 30%),
+    linear-gradient(180deg, #0d1b2f 0%, var(--fondo) 48%, #050b14 100%);
   min-height: 100%;
 }
 
 .fondo-clima {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(80,120,255,0.18), transparent 25%),
-    radial-gradient(circle at 80% 10%, rgba(40,95,220,0.12), transparent 22%),
-    radial-gradient(circle at 50% 80%, rgba(120,170,255,0.08), transparent 28%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+              linear-gradient(180deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
   pointer-events: none;
   z-index: 0;
 }
@@ -42,9 +43,124 @@ html, body {
   position: relative;
   z-index: 1;
   display: flex;
-  gap: 16px;
-  padding: 16px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
   min-height: 100vh;
+}
+
+.encabezado-app {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: var(--panel-fuerte);
+  box-shadow: var(--sombra);
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+}
+
+.bloque-marca {
+  min-width: 0;
+}
+
+.etiqueta-sistema {
+  display: block;
+  color: var(--acento-2);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.bloque-marca h1 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.menu-plantas {
+  position: relative;
+  min-width: 230px;
+}
+
+.menu-plantas summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+}
+
+.menu-plantas summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-plantas summary::after {
+  content: "▾";
+  color: var(--acento);
+  font-size: 14px;
+}
+
+.menu-plantas[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.menu-plantas summary span {
+  color: var(--texto-suave);
+  font-size: 12px;
+}
+
+.menu-plantas summary strong {
+  color: var(--texto);
+  font-size: 15px;
+}
+
+.lista-plantas {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  background: var(--panel-fuerte);
+  box-shadow: var(--sombra);
+  z-index: 20;
+}
+
+.boton-planta {
+  width: 100%;
+  margin-top: 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  box-shadow: none;
+  text-align: left;
+}
+
+.boton-planta + .boton-planta {
+  margin-top: 6px;
+}
+
+.boton-planta.activo {
+  background: linear-gradient(135deg, rgba(105, 183, 255, 0.92), rgba(79, 223, 192, 0.85));
+}
+
+.contenido-principal {
+  display: grid;
+  grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
 .panel {
@@ -52,8 +168,7 @@ html, body {
 }
 
 .panel-izquierdo {
-  width: 430px;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .panel-derecho {
@@ -64,16 +179,19 @@ html, body {
 .tarjeta-principal,
 .tarjeta-detalle {
   background: var(--panel);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-radius: 26px;
-  box-shadow: var(--shadow);
+  border-radius: 16px;
+  box-shadow: var(--sombra);
 }
 
 .tarjeta-principal {
-  padding: 18px;
+  padding: 20px;
   margin-bottom: 14px;
+  background:
+    linear-gradient(135deg, rgba(105, 183, 255, 0.18), rgba(79, 223, 192, 0.08)),
+    var(--panel);
 }
 
 .encabezado-principal {
@@ -90,7 +208,7 @@ html, body {
 
 .fecha-principal {
   margin-top: 6px;
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 13px;
 }
 
@@ -107,7 +225,7 @@ html, body {
 }
 
 .temperatura-principal {
-  font-size: 88px;
+  font-size: 78px;
   line-height: 0.95;
   font-weight: 300;
 }
@@ -123,7 +241,7 @@ html, body {
 
 .maxmin-principal {
   margin-top: 6px;
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 15px;
 }
 
@@ -146,7 +264,7 @@ html, body {
 
 .insignia-suave {
   background: rgba(255,255,255,0.08);
-  color: var(--muted);
+  color: var(--texto-suave);
 }
 
 .tarjeta {
@@ -163,6 +281,7 @@ html, body {
 .titulo-seccion {
   margin: 0 0 10px 0;
   font-size: 18px;
+  line-height: 1.2;
 }
 
 label {
@@ -170,16 +289,16 @@ label {
   margin-top: 14px;
   margin-bottom: 8px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--texto);
 }
 
 input {
   width: 100%;
   padding: 13px 14px;
   border-radius: 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   background: rgba(4, 12, 28, 0.55);
-  color: var(--text);
+  color: var(--texto);
   outline: none;
   font-size: 16px;
 }
@@ -188,13 +307,17 @@ input:focus {
   border-color: rgba(120, 170, 255, 0.5);
 }
 
+.oculto {
+  display: none;
+}
+
 button {
   width: 100%;
   margin-top: 16px;
   padding: 14px;
   border: none;
   border-radius: 16px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
   color: white;
   font-size: 16px;
   font-weight: 700;
@@ -225,7 +348,7 @@ button:disabled {
 }
 
 .hora-pronostico {
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 12px;
 }
 
@@ -257,7 +380,7 @@ button:disabled {
 }
 
 .titulo-detalle {
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 14px;
 }
 
@@ -269,7 +392,7 @@ button:disabled {
 
 .subtitulo-detalle {
   margin-top: 8px;
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 13px;
 }
 
@@ -290,7 +413,7 @@ button:disabled {
 }
 
 .etiqueta-dato-real {
-  color: var(--muted);
+  color: var(--texto-suave);
   font-size: 12px;
 }
 
@@ -304,7 +427,7 @@ button:disabled {
 .contenedor-tabla-pequena {
   overflow-x: auto;
   border-radius: 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
 }
 
 .tabla-pequena {
@@ -319,8 +442,8 @@ button:disabled {
 
 .contenedor-tabla {
   overflow-x: auto;
-  border-radius: 18px;
-  border: 1px solid var(--border);
+  border-radius: 14px;
+  border: 1px solid var(--borde);
 }
 
 table {
@@ -331,7 +454,7 @@ table {
 }
 
 thead {
-  background: rgba(100, 146, 255, 0.18);
+  background: rgba(105, 183, 255, 0.15);
 }
 
 th,
@@ -351,11 +474,15 @@ tbody tr:hover {
 }
 
 @media (max-width: 1100px) {
-  .aplicacion {
-    flex-direction: column;
+  .contenido-principal {
+    grid-template-columns: 1fr;
   }
 
-  .panel-izquierdo {
+  .encabezado-app {
+    position: static;
+  }
+
+  .panel-derecho {
     width: 100%;
   }
 }
@@ -366,14 +493,33 @@ tbody tr:hover {
     gap: 10px;
   }
 
+  .encabezado-app {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px;
+  }
+
+  .bloque-marca h1 {
+    font-size: 20px;
+  }
+
+  .menu-plantas {
+    width: 100%;
+  }
+
+  .lista-plantas {
+    left: 0;
+    right: auto;
+  }
+
   .tarjeta-principal,
   .tarjeta,
   .tarjeta-detalle {
-    border-radius: 22px;
+    border-radius: 14px;
   }
 
   .temperatura-principal {
-    font-size: 70px;
+    font-size: 62px;
   }
 
   .descripcion-principal {

@@ -3,31 +3,52 @@
  * Maneja todas las actualizaciones del DOM y eventos
  */
 
-import { UBICACION, CODIGOS_CLIMA, ICONOS_CLIMA, HORAS_OBLIGATORIAS } from './config.js';
-import { evaluarEscenario, nivelAVolumen, redondear2 } from './calculator.js';
+import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js';
 
 // ============================================
 // ESTADO GLOBAL
 // ============================================
 let resultadosActuales = [];
 
+function redondear2(valor) {
+  return Math.round(valor * 100) / 100;
+}
+
 /**
  * Obtiene los inputs del formulario
  */
 export function obtenerEntradasFormulario() {
   const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
-  const caudalBase = parseFloat(document.getElementById("caudalBase").value);
-  return { nivelInicial, caudalBase };
+  const alturaCanal = parseFloat(document.getElementById("alturaCanal")?.value);
+  return { nivelInicial, alturaCanal };
 }
 
 /**
  * Valida que los inputs sean válidos
  */
-export function validarEntradas() {
-  const { nivelInicial, caudalBase } = obtenerEntradasFormulario();
+export function validarEntradas(plantaId = "cafetal") {
+  const planta = PLANTAS[plantaId] ?? PLANTAS.cafetal;
+  const { nivelInicial } = obtenerEntradasFormulario();
   if (isNaN(nivelInicial)) return false;
-  if (nivelInicial < 770 || nivelInicial > 778) return false;
+  if (nivelInicial < planta.nivelMinimo || nivelInicial > planta.nivelMaximo) return false;
   return true;
+}
+
+export function aplicarPlanta(plantaId) {
+  const planta = PLANTAS[plantaId] ?? PLANTAS.cafetal;
+
+  document.getElementById("nombrePlanta").textContent = planta.nombre;
+  const plantaMenuActual = document.getElementById("plantaMenuActual");
+  if (plantaMenuActual) plantaMenuActual.textContent = planta.nombre;
+  document.title = `Cálculo de Caudales - ${planta.nombre}`;
+  document.getElementById("etiquetaNivelInicial").textContent =
+    `Nivel Inicial (${planta.nivelMinimo} - ${planta.nivelMaximo} msnm)`;
+  document.getElementById("nivelInicial").placeholder = `Ej. ${planta.nivelEjemplo}`;
+  document.getElementById("grupoAlturaCanal").classList.toggle("oculto", planta.id !== "la-perla");
+
+  document.querySelectorAll(".boton-planta").forEach(boton => {
+    boton.classList.toggle("activo", boton.dataset.planta === planta.id);
+  });
 }
 
 /**
@@ -281,104 +302,15 @@ export function llenarTablaResultados(resultados) {
     fila.innerHTML = `
       <td>${String(r.de).padStart(2, "0")}:00</td>
       <td>${String(r.a).padStart(2, "0")}:00</td>
-      <td class="editable" data-indice="${indice}" data-campo="potencia">${r.potencia.toFixed(2)}</td>
+      <td>${r.potencia.toFixed(2)}</td>
       <td>${r.caudalSalida.toFixed(2)}</td>
       <td>${r.volumenTurbinado.toFixed(2)}</td>
-      <td class="editable" data-indice="${indice}" data-campo="caudalIngreso">${r.caudalIngreso.toFixed(2)}</td>
+      <td>${r.caudalIngreso.toFixed(2)}</td>
       <td>${r.nivel.toFixed(2)}</td>
       <td>${r.estado}</td>
     `;
     cuerpoTabla.appendChild(fila);
   });
-
-  habilitarEdicionTabla();
-}
-
-/**
- * Habilita edición de celdas en la tabla
- */
-function habilitarEdicionTabla() {
-  const celdas = document.querySelectorAll(".editable");
-
-  celdas.forEach(celda => {
-    celda.ondblclick = function () {
-      if (celda.querySelector("input")) return;
-
-      const valorActual = celda.textContent.trim();
-      const entrada = document.createElement("input");
-      entrada.type = "number";
-      entrada.step = "0.01";
-      entrada.value = valorActual;
-      entrada.style.width = "80px";
-
-      celda.textContent = "";
-      celda.appendChild(entrada);
-      entrada.focus();
-      entrada.select();
-
-      function guardarCambio() {
-        const nuevoValor = parseFloat(entrada.value);
-        const indice = parseInt(celda.dataset.indice, 10);
-        const campo = celda.dataset.campo;
-
-        if (!isNaN(nuevoValor)) {
-          resultadosActuales[indice][campo] = redondear2(nuevoValor);
-          recalcularDesdeFila(indice);
-        } else {
-          llenarTablaResultados(resultadosActuales);
-        }
-      }
-
-      entrada.addEventListener("blur", guardarCambio);
-      entrada.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") guardarCambio();
-        if (e.key === "Escape") llenarTablaResultados(resultadosActuales);
-      });
-    };
-  });
-}
-
-/**
- * Recalcula resultados desde una fila específica
- */
-export function recalcularDesdeFila(indiceInicial) {
-  const { nivelInicial } = obtenerEntradasFormulario();
-
-  for (let i = indiceInicial; i < resultadosActuales.length; i++) {
-    const fila = resultadosActuales[i];
-    const volumenAnterior = i === 0
-      ? nivelAVolumen(nivelInicial)
-      : resultadosActuales[i - 1].acumulado;
-
-    const caudalEntrada = fila.caudalIngreso;
-    const potenciaGenerada = fila.potencia;
-
-    const escenario = evaluarEscenario(volumenAnterior, caudalEntrada, potenciaGenerada);
-
-    let estado = "Apagada";
-    if (HORAS_OBLIGATORIAS.horas.includes(fila.de) && potenciaGenerada === 0) {
-      estado = "No viable";
-    } else if (HORAS_OBLIGATORIAS.horas.includes(fila.de) && potenciaGenerada > 0) {
-      estado = "Encendida obligatoria";
-    } else if (potenciaGenerada >= 8.2) {
-      estado = "Encendida";
-    } else if (potenciaGenerada >= 4.2) {
-      estado = "Encendida";
-    }
-
-    resultadosActuales[i] = {
-      ...fila,
-      caudalSalida: escenario.salida,
-      volumenTurbinado: escenario.volumenTurbinado,
-      volumenPorHora: escenario.volumenPorHora,
-      diferencia: escenario.diferencia,
-      acumulado: redondear2(escenario.volumenFinal),
-      nivel: redondear2(escenario.nivelFinal),
-      estado: estado
-    };
-  }
-
-  llenarTablaResultados(resultadosActuales);
 }
 
 /**

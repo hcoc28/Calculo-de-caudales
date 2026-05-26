@@ -1,249 +1,137 @@
-# Cálculo de Caudales 🌊
+# Calculo de Caudales
 
-Sistema profesional de simulación y cálculo de caudales de embalse con integración de datos climáticos en tiempo real, con arquitectura modular y lista para escalabilidad.
+Sistema para consultar datos horarios de CORA, guardarlos en PostgreSQL y simular la operacion diaria del embalse desde un backend C#.
 
-## 📁 Estructura del Proyecto
+## Que hace
 
+- Consulta la API CORA desde ASP.NET Core.
+- Guarda en PostgreSQL: fecha, hora, nivel, QE, QS, QV, potencia activa, clima y JSON original.
+- Sincroniza CORA automaticamente aunque la pagina web no este abierta.
+- Usa el QE del dia anterior, de 00:00 a 23:00, como patron de entrada para la proyeccion del dia siguiente.
+- Consulta clima desde el backend.
+- Permite navegar entre dos plantas: El Cafetal y La Perla.
+- Para La Perla usa el metodo del documento de Hidrosacpur: Manning para caudal de entrada, tabla volumen/nivel 595-600 msnm y caudal turbinado por potencia/eficiencia.
+- Suma la lluvia directamente al caudal de entrada usando escorrentia:
+
+```text
+1 mm de lluvia sobre 1 m2 = 1 litro
+Q_lluvia = C * lluvia_mm * area_m2 / 1000 / 3600
 ```
+
+- Sirve el frontend y la API en un solo puerto.
+
+## Que no hace
+
+- Ya no calcula la simulacion en JavaScript.
+- Ya no usa `calculator.js`.
+- Ya no usa `npm start` para el backend.
+- Ya no depende de que el navegador este abierto para llenar la base de datos.
+
+## Estructura
+
+```text
 Calculo-de-caudales/
-├── frontend/                           # Aplicación Web (Cliente)
-│   ├── index.html                     # HTML principal
-│   ├── STRUCTURE.md                   # Documentación de estructura
-│   ├── css/
-│   │   └── styles.css                 # Estilos CSS (responsive)
+├── backend/
+│   ├── CaudalesBackend.csproj
+│   ├── Program.cs
+│   ├── .env.example
+│   ├── Clients/
+│   ├── Configuration/
+│   ├── Endpoints/
+│   ├── Extensions/
+│   ├── Infrastructure/
+│   ├── Models/
+│   ├── Repositories/
+│   ├── Services/
+│   ├── sql/
+│   │   ├── create_database.sql
+│   │   └── init.sql
+│   ├── start-backend.cmd
+│   └── start-backend.ps1
+├── frontend/
+│   ├── index.html
+│   ├── css/styles.css
 │   └── js/
-│       ├── main.js                    # Coordinador principal
-│       ├── config.js                  # Constantes y configuración
-│       ├── api.js                     # Llamadas a API de clima
-│       ├── calculator.js              # Lógica de cálculos
-│       └── ui.js                      # Gestión de interfaz
-│
-├── backend/                            # Documentación sin backend activo
-│   ├── README.md
-│   └── IMPLEMENTATION.md
-│
-├── .gitignore                         # Archivos ignorados
-└── README.md                          # Este archivo
+│       ├── api.js
+│       ├── config.js
+│       ├── main.js
+│       └── ui.js
+└── DOCUMENTACION_COMPLETA.md
 ```
 
-## 🎯 Características Principales
+## Como ejecutar
 
-- **Arquitectura Modular**: Separación clara de responsabilidades
-  - `config.js`: Todas las constantes centralizadas
-  - `api.js`: Gestión de datos externos (Open-Meteo)
-  - `calculator.js`: Lógica de simulación y cálculos
-  - `ui.js`: Interfaz y actualización del DOM
-  - `main.js`: Coordinación principal
+Desde PowerShell:
 
-- **Simulación de 24 Horas**: Cálculo detallado por hora
-- **Datos Climáticos en Tiempo Real**: Integración con API Open-Meteo
-- **Pronóstico Horario**: Visualización de clima para las próximas 24h
-- **Tabla Interactiva**: Edición de valores con recálculo automático
-- **Lógica Inteligente de Operación**:
-  - Operación obligatoria en horas específicas (18-21)
-  - Control automático de una/dos unidades
-  - Evaluación de viabilidad de reserva
-  - Protección de niveles mínimos
-- **Diseño Responsivo**: Funciona en desktop y móviles
-- **Sin Dependencias Externas**: Funciona 100% en el cliente
-
-## 💻 Módulos Frontend
-
-### `config.js` - Configuración Centralizada
-Contiene todas las constantes del sistema:
-- **Ubicación**: Coordenadas de El Cafetal
-- **Tabla de Volumen**: Conversión nivel ↔ volumen
-- **Niveles de Operación**: Mínimo, inicio, rebalse, máximo
-- **Potencia**: 4.2 MW (1 unidad) y 8.2 MW (2 unidades)
-- **Horas Obligatorias**: 18:00 a 21:00
-- **Parámetros de Clima**: Factores de precipitación
-- **API**: Endpoints y configuración
-- **Iconos y Códigos de Clima**: Mapeos completos
-
-### `api.js` - Gestión de API Externa
-Maneja todas las llamadas a Open-Meteo:
-- `fetchClimateData()`: Obtiene clima actual y pronóstico
-- `extractRainfallData()`: Extrae datos de precipitación
-- `extractCurrentWeather()`: Datos climáticos actuales
-- `extractDailyWeather()`: Datos máx/mín y horas de salida/puesta
-- `extractHourlyWeather()`: Datos horarios de los próximos días
-
-### `calculator.js` - Motor de Cálculos
-Toda la lógica matemática del simulador:
-- **Conversiones**: `levelToVolume()`, `volumeToLevel()`
-- **Caudales**: `calculateOutflowRate()`, `calculateTurbinedVolume()`
-- **Clima**: `calculateClimateFactorByRain()`, `generateInflowPattern()`
-- **Simulación**: `evaluateScenario()`, `simulateDay()`
-- **Viabilidad**: `isViableForMandatoryBlock()`, `calculateProjectedAverageInflow()`
-- **Utilidades**: `round2()`, `limitVolume()`
-
-### `ui.js` - Interfaz de Usuario
-Gestión completa del DOM:
-- **Entrada**: `getFormInputs()`, `validateInputs()`
-- **Clima**: `updateHeroCard()`, `updateHourlyForecast()`, `updateWeatherDetails()`
-- **Tabla**: `fillResultsTable()`, `recalculateFromRow()`
-- **Conversiones UI**: `getWeatherDescription()`, `getWeatherIcon()`, `getWindDirection()`
-- **Estados**: `setClimateStatus()`, `setLastUpdate()`, `setButtonLoading()`
-
-### `main.js` - Orquestador Principal
-Coordina todo el flujo:
-- Carga automática cada 10 minutos
-- Manejo de cálculo manual del usuario
-- Procesamiento de datos climáticos
-- Actualización de toda la interfaz
-- Manejo de errores y fallback
-
-## 🔧 Instalación
-
-1. Clona o descarga el proyecto
-2. Abre `frontend/index.html` en tu navegador
-3. ¡Listo! La aplicación está lista para usar
-
-## 📊 Variables Principales
-
-### Configuración
-- **Nivel mínimo**: 773.50 msnm
-- **Nivel de inicio**: 777.50 msnm
-- **Nivel de rebalse**: 777.75 msnm
-- **Nivel de embalse**: 778.00 msnm
-
-### Potencia
-- **Una unidad**: 4.2 MW
-- **Dos unidades**: 8.2 MW
-
-### Horas obligatorias de producción
-- 18:00 a 21:00
-
-## 📈 Cómo Usar
-
-1. Ingresa el **Nivel inicial** (entre 770-778 msnm)
-2. Ingresa el **Caudal base de entrada** (m³/s)
-3. Haz clic en **Calcular**
-4. Visualiza los resultados en la tabla
-5. Puedes editar valores haciendo doble clic en las celdas editables
-
-## 🌐 API Utilizada
-
-- **Open-Meteo**: Datos climáticos gratuitos
-  - Ubicación: El Cafetal (15.14375°N, 90.07007°O)
-  - Datos: Temperatura, humedad, presión, viento, precipitación
-
-## 📝 Notas
-
-- Los datos se actualizan automáticamente cada 10 minutos
-- La aplicación funciona sin backend - es completamente frontend
-- Los cálculos se realizan en el navegador del cliente
-
-## 🎨 Diseño
-
-- **Tema**: Dark mode con gradientes azules
-- **Colores principales**: 
-  - Fondo: Azul oscuro (#081225)
-  - Acentos: Azul claro (#6aa7ff)
-  - Éxito: Verde (#63e6a8)
-  - Error: Rojo (#ff7d7d)
-
-## 📦 Estructura de Archivos Detallada
-
-### `frontend/`
-- **index.html**: Estructura HTML semántica mejorada
-- **css/styles.css**: Estilos responsivos, tema oscuro
-- **js/config.js**: Constantes centralizadas
-- **js/api.js**: Gestión de API Open-Meteo
-- **js/calculator.js**: Lógica de simulación completa
-- **js/ui.js**: Funciones de interfaz de usuario
-- **js/main.js**: Punto de entrada y coordinación
-- **STRUCTURE.md**: Documentación técnica de módulos
-
-### `backend/`
-- **IMPLEMENTATION.md**: Guía completa de implementación
-- **README.md**: Instrucciones de setup
-
-5. **Testear**: Toda la integración
-
-Ver `/frontend/STRUCTURE.md` para detalles de cómo hacerlo.
-
-## 📚 Documentación Adicional
-
-- **Frontend**: Ver `frontend/STRUCTURE.md`
-- **API**: Open-Meteo en https://open-meteo.com/
-
-## 🎯 Casos de Uso
-
-1. **Simulación Diaria**: Predecir comportamiento del embalse
-2. **Planificación**: Optimizar horas de generación
-3. **Emergencias**: Evaluar viabilidad en condiciones críticas
-4. **Análisis**: Comparar escenarios en la sesión actual
-
-## 📊 Ejemplo de Uso
-
-```javascript
-// El usuario ingresa:
-- Nivel inicial: 775.50 msnm
-- Caudal base: 2.00 m³/s
-
-// La app retorna:
-- Simulación para las próximas 24 horas
-- Tabla hora por hora con:
-  - Potencia recomendada (0, 4.2, 8.2 MW)
-  - Caudal de salida
-  - Volumen turbinado
-  - Nivel del embalse
-  - Estado de operación
-
-// El usuario puede:
-- Editar valores manualmente
-- Ver recálculos automáticos
-- Comparar escenarios
+```powershell
+cd "C:\Users\coced\Desktop\Calculo-de-caudales\backend"
+.\start-backend.cmd
 ```
 
-## 🔧 Troubleshooting
+Luego abre:
 
-### "No se carga el clima"
-- Verifica conexión a internet
-- Comprueba que Open-Meteo no esté caída
-- Revisa la consola del navegador (F12)
-
-### "Los números no se ven bien"
-- Actualiza el navegador
-- Limpia el cache (Ctrl+Shift+Del)
-- Intenta en otro navegador
-
-### "Las ediciones no se guardan"
-- Los cambios son solo en sesión actual
-- Los datos se pierden al recargar
-
-## 👨‍💻 Desarrollo Local
-
-```bash
-# Clonar proyecto
-git clone <repo-url>
-cd Calculo-de-caudales
-
-# Con Python:
-cd frontend
-python -m http.server 3000
-# Luego abre http://127.0.0.1:3000/
+```text
+http://localhost:4000
 ```
 
-## 📄 Licencia
+Ese puerto sirve todo: frontend, API, CORA, clima y simulacion.
 
-Uso libre para fines educativos y comerciales
+## Base de datos
 
-## 👥 Contribuciones
+La base se llama normalmente:
 
-Las contribuciones son bienvenidas. Por favor:
-1. Fork el proyecto
-2. Crea una rama para tu feature
-3. Haz commit de tus cambios
-4. Push a la rama
-5. Abre un Pull Request
+```text
+calculo_caudales
+```
 
-## 📞 Soporte
+La tabla principal es:
 
-Para reportar bugs o sugerir mejoras, revisa la documentación en `/frontend/STRUCTURE.md`.
+```text
+datos_cora
+```
 
----
+El backend evita duplicados con una regla unica por `fecha + hora`. Si CORA manda de nuevo una hora ya existente, el registro se actualiza.
 
-**Última actualización**: 11 de Mayo, 2026
-**Versión**: 2.0 (Arquitectura Modular)
+## Configuracion
+
+Copia `backend/.env.example` como `backend/.env` y coloca tus datos reales:
+
+```env
+PORT=4000
+DATABASE_URL=postgres://caudales_user:TU_PASSWORD@localhost:5432/calculo_caudales
+CORA_API_URL=https://cora.cavcenergy.com/api/plants/embalselectura/embalseion/ultimos/f595b230-39b2-460e-96f2-f397e5f91f38
+CORA_API_CANTIDAD=72
+CORA_SYNC_MINUTES=10
+CORA_SYNC_ON_START=true
+ESCORRENTIA_COEFICIENTE=0.65
+ESCORRENTIA_AREA_M2=
+```
+
+`CORA_API_CANTIDAD=72` ayuda a recuperar suficientes lecturas para completar el dia anterior aunque el backend se arranque a media tarde.
+
+`ESCORRENTIA_AREA_M2` puede quedar vacio. En ese caso C# estima el area desde la tabla volumen/nivel del simulador.
+
+## Endpoints utiles
+
+```text
+GET  /api/salud
+GET  /api/cora/datos?cantidad=72
+GET  /api/cora/patron-entrada
+POST /api/cora/sincronizar
+GET  /api/clima
+POST /api/simulacion
+```
+
+## Archivos clave
+
+- `backend/Program.cs`: arranque limpio de la aplicacion.
+- `backend/Configuration/`: lectura de `.env` y armado de configuracion.
+- `backend/Clients/`: clientes HTTP para CORA y Open-Meteo.
+- `backend/Repositories/`: acceso a PostgreSQL.
+- `backend/Services/`: sincronizacion CORA y motor de simulacion.
+- `backend/Services/SimuladorLaPerla.cs`: calculo especifico para La Perla.
+- `backend/Models/`: DTOs, requests y opciones.
+- `backend/Endpoints/`: rutas HTTP de la API.
+- `frontend/js/api.js`: llamadas del navegador hacia el backend C#.
+- `frontend/js/ui.js`: pinta datos y resultados en pantalla.
+- `frontend/js/main.js`: coordina carga inicial, actualizacion y boton Calcular.

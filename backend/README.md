@@ -1,6 +1,51 @@
-# Backend - Cálculo de Caudales
+# Backend C# - Calculo de Caudales
 
-Backend para guardar automáticamente los datos horarios de la API CORA en PostgreSQL.
+Backend ASP.NET Core para guardar automaticamente los datos horarios de la API CORA en PostgreSQL y servir el frontend en el mismo puerto.
+
+## Como ejecutar
+
+```powershell
+cd "C:\Users\coced\Desktop\Calculo-de-caudales\backend"
+.\start-backend.cmd
+```
+
+Luego abre:
+
+```text
+http://localhost:4000
+```
+
+## Configuracion
+
+El archivo `.env` contiene la configuracion local. No compartas ese archivo si tiene contrasenas reales.
+
+Ejemplo:
+
+```env
+PORT=4000
+DATABASE_URL=postgres://caudales_user:TU_PASSWORD@localhost:5432/calculo_caudales
+CORA_API_URL=https://cora.cavcenergy.com/api/plants/embalselectura/embalseion/ultimos/f595b230-39b2-460e-96f2-f397e5f91f38
+CORA_API_CANTIDAD=72
+CORA_SYNC_MINUTES=10
+CORA_SYNC_ON_START=true
+```
+
+`Program.cs` tambien acepta cadenas PostgreSQL estilo Npgsql:
+
+```text
+Host=localhost;Port=5432;Database=calculo_caudales;Username=caudales_user;Password=TU_PASSWORD
+```
+
+## Endpoints
+
+```text
+GET  /api/salud
+GET  /api/cora/datos?cantidad=72
+GET  /api/cora/patron-entrada
+GET  /api/cora/patron-entrada?fecha=2026-05-18
+POST /api/cora/sincronizar
+GET  /
+```
 
 ## Datos almacenados
 
@@ -16,66 +61,23 @@ La tabla `datos_cora` guarda:
 - `clima`
 - `datos_originales`
 
-## Configuración
+La restriccion `UNIQUE (fecha, hora)` evita duplicados. Si CORA vuelve a entregar la misma hora, el backend actualiza el registro.
 
-1. Crear la base y usuario en PostgreSQL:
+## Sincronizacion automatica
 
-```bash
-psql -U postgres -f sql/create_database.sql
-```
+El backend consulta CORA al arrancar y luego cada `CORA_SYNC_MINUTES` minutos. Actualmente esta configurado cada 10 minutos para capturar nuevas lecturas aunque CORA publique tarde. `CORA_API_CANTIDAD=72` permite recuperar tambien lecturas del dia anterior cuando el backend se inicia a media tarde.
 
-2. Crear las tablas:
+## Archivos principales
 
-```bash
-psql -U postgres -d calculo_caudales -f sql/init.sql
-```
-
-3. Copiar `.env.example` como `.env` y ajustar la contraseña:
-
-```env
-DATABASE_URL=postgres://caudales_user:tu_password_seguro@localhost:5432/calculo_caudales
-```
-
-4. Instalar dependencias y ejecutar:
-
-```bash
-npm install
-npm start
-```
-
-El backend y el frontend quedan en un solo puerto:
-
-```text
-http://localhost:4000
-```
-
-## Sincronización automática
-
-La variable `CORA_SYNC_CRON=0 * * * *` hace que el backend consulte CORA cada hora, en el minuto 0, y guarde los datos en PostgreSQL.
-
-También sincroniza al iniciar si `CORA_SYNC_ON_START=true`.
-
-## Patrón de entrada para proyección
-
-El frontend ya no usa un patrón fijo de caudal. Para simular el día siguiente, solicita al backend el patrón de `QE` del día anterior:
-
-```text
-GET /api/cora/patron-entrada
-```
-
-El backend devuelve un arreglo de 24 posiciones, de la hora `00:00` a `23:00`, tomado desde `datos_cora.qe`.
-
-También se puede pedir una fecha específica:
-
-```text
-GET /api/cora/patron-entrada?fecha=2026-05-18
-```
-
-## Endpoints
-
-```text
-GET  /api/salud
-GET  /api/cora/datos?cantidad=24
-GET  /api/cora/patron-entrada
-POST /api/cora/sincronizar
-```
+- `CaudalesBackend.csproj`: proyecto .NET.
+- `Program.cs`: arranque de ASP.NET Core.
+- `Configuration/`: variables de entorno y configuracion.
+- `Clients/`: CORA y clima.
+- `Repositories/`: PostgreSQL.
+- `Services/`: sincronizacion automatica y simulacion.
+- `Models/`: contratos de datos.
+- `Endpoints/`: rutas HTTP.
+- `sql/create_database.sql`: creacion inicial de base y usuario.
+- `sql/init.sql`: tabla `datos_cora`.
+- `start-backend.cmd`: arranque en Windows.
+- `start-backend.ps1`: arranque en PowerShell.
