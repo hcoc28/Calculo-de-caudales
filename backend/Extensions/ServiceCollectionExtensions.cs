@@ -2,6 +2,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using CaudalesBackend.Clients;
 using CaudalesBackend.Configuration;
+using CaudalesBackend.Infrastructure;
 using CaudalesBackend.Repositories;
 using CaudalesBackend.Services;
 using Npgsql;
@@ -16,6 +17,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton(settings.Cora);
         services.AddSingleton(settings.Sync);
         services.AddSingleton(settings.Escorrentia);
+        services.AddSingleton<DatabaseInitializer>();
 
         services.AddHttpClient<CoraClient>()
             .ConfigurePrimaryHttpMessageHandler(CreateHttpHandler);
