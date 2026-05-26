@@ -26,8 +26,15 @@
           <button class="boton-planta" type="button" data-planta="la-perla">La Perla</button>
         </nav>
       </details>
+
+      <nav class="menu-vistas" aria-label="Navegación principal">
+        <button class="boton-vista activo" type="button" data-vista="proyeccion">Realizar proyección</button>
+        <button class="boton-vista" type="button" data-vista="guardadas">Ver proyecciones</button>
+        <button class="boton-vista" type="button" data-vista="datos-reales">Datos reales</button>
+      </nav>
     </header>
 
+    <section id="vistaProyeccion" class="vista vista-activa">
     <div class="contenido-principal">
       <!-- PANEL IZQUIERDO: CLIMA Y ENTRADA -->
       <aside class="panel panel-izquierdo">
@@ -84,31 +91,6 @@
         </div>
 
         <button id="botonCalcular" type="button" aria-label="Calcular simulación">Calcular</button>
-      </div>
-
-      <!-- Datos reales de producción y embalse -->
-      <div class="tarjeta">
-        <div class="fila-seccion">
-          <h3 class="titulo-seccion">Datos Reales del Embalse</h3>
-          <span id="estadoEmbalseApi" class="insignia insignia-suave">Cargando...</span>
-        </div>
-        <div id="embalseResumen" class="cuadricula-datos-reales"></div>
-        <div class="contenedor-tabla-pequena">
-          <table id="tablaEmbalseReal" class="tabla-pequena">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Nivel</th>
-                <th>QE</th>
-                <th>QS</th>
-                <th>QV</th>
-                <th>Potencia</th>
-                <th>Clima</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
       </div>
 
       <!-- Pronóstico de 24 horas -->
@@ -186,6 +168,73 @@
       </div>
       </main>
     </div>
+    </section>
+
+    <section id="vistaGuardadas" class="vista oculto">
+      <div class="contenido-secundario">
+        <aside class="panel panel-listado">
+          <div class="tarjeta">
+            <div class="fila-seccion">
+              <h2 class="titulo-seccion">Proyecciones guardadas</h2>
+              <span id="estadoProyecciones" class="insignia insignia-suave">--</span>
+            </div>
+            <div id="listaProyecciones" class="lista-proyecciones"></div>
+          </div>
+        </aside>
+
+        <main class="panel panel-derecho">
+          <div class="tarjeta">
+            <div class="fila-seccion">
+              <h2 id="tituloProyeccionGuardada" class="titulo-seccion">Seleccione una proyección</h2>
+            </div>
+            <div id="resumenProyeccionGuardada" class="cuadricula-datos-reales"></div>
+            <div class="contenedor-tabla">
+              <table id="tablaProyeccionGuardada">
+                <thead>
+                  <tr>
+                    <th>De</th>
+                    <th>A</th>
+                    <th>Potencia (MW)</th>
+                    <th>Caudal Salida (m³/s)</th>
+                    <th>Vol. Turbinado (m³)</th>
+                    <th>Caudal Ingreso (m³/s)</th>
+                    <th>Nivel (msnm)</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <section id="vistaDatosReales" class="vista oculto">
+      <div class="tarjeta">
+        <div class="fila-seccion">
+          <h2 class="titulo-seccion">Datos Reales del Embalse</h2>
+          <span id="estadoEmbalseApi" class="insignia insignia-suave">Cargando...</span>
+        </div>
+        <div id="embalseResumen" class="cuadricula-datos-reales"></div>
+        <div class="contenedor-tabla">
+          <table id="tablaEmbalseReal">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Nivel</th>
+                <th>QE</th>
+                <th>QS</th>
+                <th>QV</th>
+                <th>Potencia</th>
+                <th>Clima</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Scripts modulares -->
@@ -201,6 +250,6 @@
         .catch(() => {});
     }
   </script>
-  <script type="module" src="js/main.js?v=20260512-calibrated-patterns"></script>
+  <script type="module" src="js/main.js?v=20260526-proyecciones"></script>
 </body>
 </html>

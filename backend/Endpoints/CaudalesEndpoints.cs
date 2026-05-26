@@ -16,6 +16,8 @@ internal static class CaudalesEndpoints
         app.MapPost("/api/cora/sincronizar", SincronizarCoraAsync);
         app.MapGet("/api/clima", ObtenerClimaAsync);
         app.MapPost("/api/simulacion", SimularAsync);
+        app.MapGet("/api/proyecciones", ListarProyeccionesAsync);
+        app.MapGet("/api/proyecciones/{id:long}", ObtenerProyeccionAsync);
 
         return app;
     }
@@ -60,5 +62,27 @@ internal static class CaudalesEndpoints
     private static async Task<IResult> SimularAsync(SimulacionRequest request, SimulacionService service)
     {
         return await service.SimularAsync(request);
+    }
+
+    private static async Task<IResult> ListarProyeccionesAsync(string? planta, int? cantidad, ProyeccionRepository repository)
+    {
+        var limite = Math.Clamp(cantidad ?? 30, 1, 200);
+        var plantaNormalizada = NormalizarPlanta(planta);
+        var proyecciones = await repository.ListarAsync(plantaNormalizada, limite);
+        return Results.Ok(proyecciones);
+    }
+
+    private static async Task<IResult> ObtenerProyeccionAsync(long id, ProyeccionRepository repository)
+    {
+        var proyeccion = await repository.ObtenerAsync(id);
+        return proyeccion is null ? Results.NotFound(new { error = "Proyeccion no encontrada." }) : Results.Ok(proyeccion);
+    }
+
+    private static string? NormalizarPlanta(string? planta)
+    {
+        if (string.IsNullOrWhiteSpace(planta)) return null;
+        return string.Equals(planta, "la-perla", StringComparison.OrdinalIgnoreCase)
+            ? "la-perla"
+            : "cafetal";
     }
 }

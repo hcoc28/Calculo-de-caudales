@@ -7,17 +7,20 @@ namespace CaudalesBackend.Services;
 internal sealed class SimulacionService
 {
     private readonly CoraRepository repository;
+    private readonly ProyeccionRepository proyeccionRepository;
     private readonly WeatherClient weatherClient;
     private readonly EscorrentiaOptions escorrentia;
     private readonly ILogger<SimulacionService> logger;
 
     public SimulacionService(
         CoraRepository repository,
+        ProyeccionRepository proyeccionRepository,
         WeatherClient weatherClient,
         EscorrentiaOptions escorrentia,
         ILogger<SimulacionService> logger)
     {
         this.repository = repository;
+        this.proyeccionRepository = proyeccionRepository;
         this.weatherClient = weatherClient;
         this.escorrentia = escorrentia;
         this.logger = logger;
@@ -39,7 +42,7 @@ internal sealed class SimulacionService
             var alturaCanal = request.AlturaCanal ?? 0.50;
             var lluviaLaPerla = await ObtenerLluviaOSimulacionSecaAsync();
             var resultadoLaPerla = SimuladorLaPerla.SimularDia(request.NivelInicial, alturaCanal, lluviaLaPerla, escorrentia);
-            return Results.Ok(resultadoLaPerla);
+            return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultadoLaPerla));
         }
 
         var fechaPatron = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
@@ -57,7 +60,21 @@ internal sealed class SimulacionService
 
         var datosLluvia = await ObtenerLluviaOSimulacionSecaAsync();
         var resultados = SimuladorCaudales.SimularDia(request.NivelInicial, datosLluvia, patron, escorrentia);
-        return Results.Ok(resultados);
+        return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultados));
+    }
+
+    private async Task<SimulacionResponse> GuardarSiCorrespondeAsync(
+        SimulacionRequest request,
+        string planta,
+        SimulacionResponse simulacion)
+    {
+        if (!request.Guardar)
+        {
+            return simulacion;
+        }
+
+        var id = await proyeccionRepository.GuardarAsync(planta, request.NivelInicial, request.AlturaCanal, simulacion);
+        return simulacion with { ProyeccionId = id };
     }
 
     private static string NormalizarPlanta(string? planta)

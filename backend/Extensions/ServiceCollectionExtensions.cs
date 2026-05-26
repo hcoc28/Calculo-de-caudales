@@ -25,6 +25,7 @@ internal static class ServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(CreateHttpHandler);
 
         services.AddSingleton<CoraRepository>();
+        services.AddSingleton<ProyeccionRepository>();
         services.AddSingleton<SimulacionService>();
         services.AddHostedService<CoraSyncService>();
 

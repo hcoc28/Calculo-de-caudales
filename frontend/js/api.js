@@ -3,7 +3,7 @@
  * Maneja las llamadas al backend C#.
  */
 
-import { API, HORAS_OBLIGATORIAS } from './config.js';
+import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260526-proyecciones';
 
 async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) {
   const controlador = new AbortController();
@@ -14,6 +14,12 @@ async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) 
   } finally {
     clearTimeout(idTiempoEspera);
   }
+}
+
+async function leerJsonSeguro(respuesta) {
+  const texto = await respuesta.text();
+  if (!texto) return null;
+  return JSON.parse(texto);
 }
 
 /**
@@ -28,7 +34,7 @@ export async function obtenerDatosClima() {
     if (!respuesta.ok) {
       throw new Error(`Error de backend de clima: ${respuesta.status}`);
     }
-    return await respuesta.json();
+    return await leerJsonSeguro(respuesta);
   } catch (error) {
     console.error('Error al obtener datos de clima:', error);
     throw error;
@@ -39,16 +45,16 @@ export async function obtenerDatosClima() {
  * Solicita al backend C# la simulación completa de 24 horas.
  * El backend obtiene QE desde PostgreSQL y lluvia desde Open-Meteo.
  */
-export async function obtenerSimulacion(planta, nivelInicial, alturaCanal = null) {
+export async function obtenerSimulacion(planta, nivelInicial, alturaCanal = null, guardar = false) {
   const { urlSimulacion, tiempoEspera } = API.embalse;
 
   try {
     const respuesta = await obtenerConTiempoLimite(urlSimulacion, tiempoEspera, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planta, nivelInicial, alturaCanal })
+      body: JSON.stringify({ planta, nivelInicial, alturaCanal, guardar })
     });
-    const datos = await respuesta.json();
+    const datos = await leerJsonSeguro(respuesta);
 
     if (!respuesta.ok) {
       throw new Error(datos?.error ?? `Error de simulación: ${respuesta.status}`);
@@ -77,7 +83,7 @@ export async function obtenerDatosEmbalse() {
     if (!respuesta.ok) {
       throw new Error(`Error de backend de embalse: ${respuesta.status}`);
     }
-    return await respuesta.json();
+    return await leerJsonSeguro(respuesta);
   } catch (error) {
     console.error('Error al obtener datos de embalse desde la base de datos:', error);
     throw error;
@@ -103,11 +109,36 @@ export async function obtenerPatronEntradaEmbalse(fecha = null) {
     if (!respuesta.ok) {
       throw new Error(`Error de patrón de entrada: ${respuesta.status}`);
     }
-    return await respuesta.json();
+    return await leerJsonSeguro(respuesta);
   } catch (error) {
     console.error('Error al obtener patrón de entrada desde la base de datos:', error);
     throw error;
   }
+}
+
+export async function obtenerProyecciones(planta) {
+  const { urlProyecciones, tiempoEspera } = API.embalse;
+  const parametros = new URLSearchParams({ planta, cantidad: "50" });
+  const respuesta = await obtenerConTiempoLimite(`${urlProyecciones}?${parametros}`, tiempoEspera);
+  const datos = await leerJsonSeguro(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error ?? `Error al obtener proyecciones: ${respuesta.status}`);
+  }
+
+  return Array.isArray(datos) ? datos : [];
+}
+
+export async function obtenerProyeccion(id) {
+  const { urlProyecciones, tiempoEspera } = API.embalse;
+  const respuesta = await obtenerConTiempoLimite(`${urlProyecciones}/${id}`, tiempoEspera);
+  const datos = await leerJsonSeguro(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error ?? `Error al obtener proyección: ${respuesta.status}`);
+  }
+
+  return datos;
 }
 
 /**

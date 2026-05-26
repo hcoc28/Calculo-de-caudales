@@ -3,7 +3,8 @@ namespace CaudalesBackend.Models;
 internal sealed record SimulacionRequest(
     string? Planta,
     double NivelInicial,
-    double? AlturaCanal);
+    double? AlturaCanal,
+    bool Guardar = false);
 
 internal sealed record ResultadoHorarioDto(
     int De,
@@ -36,6 +37,27 @@ internal sealed record ResumenSimulacionDto(
 
 internal sealed record SimulacionResponse(
     List<ResultadoHorarioDto> Resultados,
-    ResumenSimulacionDto Resumen);
+    ResumenSimulacionDto Resumen,
+    long? ProyeccionId = null);
 
 internal sealed record EscorrentiaOptions(double Coeficiente, double? AreaAporteM2);
+
+internal sealed record ProyeccionResumenDto(
+    long Id,
+    string Planta,
+    DateTime CreadoEn,
+    double NivelInicial,
+    double? AlturaCanal,
+    DateOnly? FechaPatron,
+    double NivelFinal,
+    int HorasProduccion);
+
+internal sealed record ProyeccionDetalleDto(
+    long Id,
+    string Planta,
+    DateTime CreadoEn,
+    double NivelInicial,
+    double? AlturaCanal,
+    DateOnly? FechaPatron,
+    List<ResultadoHorarioDto> Resultados,
+    ResumenSimulacionDto Resumen);

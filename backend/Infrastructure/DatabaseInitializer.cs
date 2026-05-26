@@ -34,10 +34,31 @@ internal sealed class DatabaseInitializer
 
             CREATE INDEX IF NOT EXISTS idx_datos_cora_fecha_hora
             ON datos_cora (fecha DESC, hora DESC);
+
+            CREATE TABLE IF NOT EXISTS proyecciones (
+              id BIGSERIAL PRIMARY KEY,
+              planta TEXT NOT NULL,
+              nivel_inicial DOUBLE PRECISION NOT NULL,
+              altura_canal DOUBLE PRECISION,
+              fecha_patron DATE,
+              resultados JSONB NOT NULL,
+              resumen JSONB NOT NULL,
+              creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_proyecciones_planta_creado
+            ON proyecciones (planta, creado_en DESC);
             """;
 
-        await using var command = db.CreateCommand(sql);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        logger.LogInformation("[DB] Tabla datos_cora verificada.");
+        try
+        {
+            await using var command = db.CreateCommand(sql);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            logger.LogInformation("[DB] Tablas datos_cora y proyecciones verificadas.");
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InsufficientPrivilege)
+        {
+            logger.LogError(ex, "[DB] El usuario de PostgreSQL no tiene permiso para crear tablas en el esquema public.");
+        }
     }
 }

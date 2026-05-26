@@ -57,6 +57,7 @@ export const API = {
     urlBackend: "/api/cora/datos",
     urlPatronEntrada: "/api/cora/patron-entrada",
     urlSimulacion: "/api/simulacion",
+    urlProyecciones: "/api/proyecciones",
     cantidadUltimos: 24,
     tiempoEspera: 10000
   }

@@ -7,12 +7,14 @@ import {
   obtenerDatosClima,
   obtenerDatosEmbalse,
   obtenerPatronEntradaEmbalse,
+  obtenerProyeccion,
+  obtenerProyecciones,
   obtenerSimulacion,
   extraerClimaActual,
   extraerClimaDiario,
   extraerClimaHorario,
   extraerDatosLluvia
-} from './api.js?v=20260512-calibrated-patterns';
+} from './api.js?v=20260526-proyecciones';
 import {
   obtenerEntradasFormulario,
   validarEntradas,
@@ -25,13 +27,17 @@ import {
   establecerBotonCargando,
   actualizarDatosEmbalse,
   establecerEstadoEmbalse,
+  actualizarDetalleProyeccion,
+  actualizarListaProyecciones,
+  aplicarVista,
   aplicarPlanta
-} from './ui.js?v=20260512-calibrated-patterns';
-import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260512-calibrated-patterns';
+} from './ui.js?v=20260526-proyecciones';
+import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260526-proyecciones';
 
 let patronEntradaReal = null;
 let fechaPatronEntrada = null;
 let plantaActual = "cafetal";
+let vistaActual = "proyeccion";
 
 function redondear2(valor) {
   return Math.round(valor * 100) / 100;
@@ -161,12 +167,54 @@ async function manejarCalculoManual() {
     await actualizarPanelEmbalse();
     const datosClima = await obtenerDatosClima();
     await renderizarDesdeDatosClima(datosClima);
+    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+    const simulacionGuardada = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, true);
+    llenarTablaResultados(simulacionGuardada.resultados);
+    await cargarProyecciones();
+    if (simulacionGuardada.proyeccionId) {
+      establecerEstadoEmbalse(`Proyección guardada #${simulacionGuardada.proyeccionId}`);
+    }
   } catch (error) {
     console.error('Error en cálculo manual:', error);
     establecerEstadoClima("Clima: no disponible, simulando sin lluvia");
     establecerEstadoEmbalse(error.message ?? "Simulación no disponible");
   } finally {
     establecerBotonCargando(false);
+  }
+}
+
+async function cargarProyecciones() {
+  const planta = PLANTAS[plantaActual] ?? PLANTAS.cafetal;
+  try {
+    const proyecciones = await obtenerProyecciones(plantaActual);
+    actualizarListaProyecciones(proyecciones, planta.nombre);
+  } catch (error) {
+    console.error('Error al cargar proyecciones:', error);
+    actualizarListaProyecciones([], planta.nombre);
+  }
+}
+
+async function manejarSeleccionProyeccion(evento) {
+  const boton = evento.target.closest(".boton-proyeccion");
+  if (!boton) return;
+
+  document.querySelectorAll(".boton-proyeccion").forEach(item => item.classList.remove("activo"));
+  boton.classList.add("activo");
+
+  const proyeccion = await obtenerProyeccion(boton.dataset.proyeccionId);
+  actualizarDetalleProyeccion(proyeccion);
+}
+
+async function cambiarVista(vista) {
+  vistaActual = vista;
+  aplicarVista(vistaActual);
+
+  if (vistaActual === "guardadas") {
+    await cargarProyecciones();
+  }
+
+  if (vistaActual === "datos-reales") {
+    await actualizarPanelEmbalse();
   }
 }
 
@@ -185,9 +233,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       aplicarPlanta(plantaActual);
       boton.closest(".menu-plantas")?.removeAttribute("open");
       llenarTablaResultados([]);
+      await cargarProyecciones();
       await actualizarTodo();
     });
   });
+
+  document.querySelectorAll(".boton-vista").forEach(boton => {
+    boton.addEventListener("click", async () => {
+      await cambiarVista(boton.dataset.vista ?? "proyeccion");
+    });
+  });
+
+  document.getElementById("listaProyecciones")?.addEventListener("click", manejarSeleccionProyeccion);
 
   if (botonCalcular) {
     botonCalcular.addEventListener("click", manejarCalculoManual);

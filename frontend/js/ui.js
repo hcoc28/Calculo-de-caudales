@@ -3,7 +3,7 @@
  * Maneja todas las actualizaciones del DOM y eventos
  */
 
-import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js';
+import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260526-proyecciones';
 
 // ============================================
 // ESTADO GLOBAL
@@ -270,6 +270,22 @@ export function establecerEstadoClima(texto) {
   if (elemento) elemento.textContent = texto;
 }
 
+export function aplicarVista(vistaId) {
+  const mapa = {
+    proyeccion: "vistaProyeccion",
+    guardadas: "vistaGuardadas",
+    "datos-reales": "vistaDatosReales"
+  };
+
+  Object.entries(mapa).forEach(([id, elementoId]) => {
+    document.getElementById(elementoId)?.classList.toggle("oculto", id !== vistaId);
+  });
+
+  document.querySelectorAll(".boton-vista").forEach(boton => {
+    boton.classList.toggle("activo", boton.dataset.vista === vistaId);
+  });
+}
+
 /**
  * Actualiza timestamp de última actualización
  */
@@ -289,15 +305,13 @@ export function establecerUltimaActualizacion() {
 /**
  * Rellena la tabla de resultados
  */
-export function llenarTablaResultados(resultados) {
-  resultadosActuales = JSON.parse(JSON.stringify(resultados));
-
-  const cuerpoTabla = document.querySelector("#tablaResultados tbody");
+function llenarTabla(selectorTabla, resultados) {
+  const cuerpoTabla = document.querySelector(`${selectorTabla} tbody`);
   if (!cuerpoTabla) return;
 
   cuerpoTabla.innerHTML = "";
 
-  resultadosActuales.forEach((r, indice) => {
+  resultados.forEach(r => {
     const fila = document.createElement("tr");
     fila.innerHTML = `
       <td>${String(r.de).padStart(2, "0")}:00</td>
@@ -311,6 +325,90 @@ export function llenarTablaResultados(resultados) {
     `;
     cuerpoTabla.appendChild(fila);
   });
+}
+
+export function llenarTablaResultados(resultados) {
+  resultadosActuales = JSON.parse(JSON.stringify(resultados));
+  llenarTabla("#tablaResultados", resultadosActuales);
+}
+
+export function llenarTablaProyeccionGuardada(resultados) {
+  llenarTabla("#tablaProyeccionGuardada", resultados ?? []);
+}
+
+export function actualizarListaProyecciones(proyecciones, plantaNombre) {
+  const estado = document.getElementById("estadoProyecciones");
+  const lista = document.getElementById("listaProyecciones");
+  if (!lista) return;
+
+  lista.innerHTML = "";
+  if (estado) estado.textContent = `${proyecciones.length} guardadas`;
+
+  if (!proyecciones.length) {
+    lista.innerHTML = `<div class="meta-item-proyeccion">No hay proyecciones guardadas para ${plantaNombre}.</div>`;
+    return;
+  }
+
+  proyecciones.forEach(proyeccion => {
+    const fecha = new Date(proyeccion.creadoEn).toLocaleString("es-GT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "boton-proyeccion";
+    boton.dataset.proyeccionId = proyeccion.id;
+    boton.innerHTML = `
+      <div class="titulo-item-proyeccion">
+        <span>${fecha}</span>
+        <span>${Number(proyeccion.nivelFinal).toFixed(2)} msnm</span>
+      </div>
+      <div class="meta-item-proyeccion">Nivel inicial ${Number(proyeccion.nivelInicial).toFixed(2)} | ${proyeccion.horasProduccion} h producción</div>
+    `;
+    lista.appendChild(boton);
+  });
+}
+
+export function actualizarDetalleProyeccion(proyeccion) {
+  const titulo = document.getElementById("tituloProyeccionGuardada");
+  const resumen = document.getElementById("resumenProyeccionGuardada");
+  if (!titulo || !resumen) return;
+
+  const fecha = new Date(proyeccion.creadoEn).toLocaleString("es-GT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  titulo.textContent = `Proyección ${fecha}`;
+  resumen.innerHTML = `
+    <div class="dato-real">
+      <div class="etiqueta-dato-real">Nivel inicial</div>
+      <div class="valor-dato-real">${Number(proyeccion.nivelInicial).toFixed(2)} msnm</div>
+    </div>
+    <div class="dato-real">
+      <div class="etiqueta-dato-real">Nivel final</div>
+      <div class="valor-dato-real">${Number(proyeccion.resumen.nivelFinal).toFixed(2)} msnm</div>
+    </div>
+    <div class="dato-real">
+      <div class="etiqueta-dato-real">Patrón QE</div>
+      <div class="valor-dato-real">${proyeccion.fechaPatron ?? "--"}</div>
+    </div>
+    <div class="dato-real">
+      <div class="etiqueta-dato-real">Producción</div>
+      <div class="valor-dato-real">${proyeccion.resumen.horasProduccion} horas</div>
+    </div>
+  `;
+  llenarTablaProyeccionGuardada(proyeccion.resultados);
+}
+
+export function establecerEstadoProyecciones(texto) {
+  const estado = document.getElementById("estadoProyecciones");
+  if (estado) estado.textContent = texto;
 }
 
 /**
