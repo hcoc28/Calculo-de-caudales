@@ -30,11 +30,17 @@ internal static class SimuladorLaPerla
     private const double PendienteCanal = 0.00184;
     private const double ManningConcreto = 0.014;
 
-    public static SimulacionResponse SimularDia(double nivelInicial, double alturaCanalM, double[] datosLluvia, EscorrentiaOptions escorrentia)
+    public static SimulacionResponse SimularDia(
+        double nivelInicial,
+        double alturaCanalM,
+        double[] datosLluvia,
+        EscorrentiaOptions escorrentia,
+        double? potenciaGeneracionMw)
     {
         var volumenInicial = NivelAVolumen(nivelInicial);
         var areaEscorrentia = ObtenerAreaEscorrentia(nivelInicial, escorrentia);
         var caudalEntradaBase = CalcularCaudalManning(alturaCanalM);
+        var potenciaUnidad = ObtenerPotenciaGeneracion(potenciaGeneracionMw);
 
         var volumenAcumulado = volumenInicial;
         var resultados = new List<ResultadoHorarioDto>();
@@ -43,7 +49,7 @@ internal static class SimuladorLaPerla
         {
             var lluvia = h >= 2 ? datosLluvia[h - 2] : 0;
             var caudalEntrada = Redondear2(caudalEntradaBase + CalcularCaudalEscorrentiaPorLluvia(lluvia, nivelInicial, escorrentia));
-            var potencia = ElegirPotencia(volumenAcumulado, caudalEntrada);
+            var potencia = ElegirPotencia(volumenAcumulado, caudalEntrada, potenciaUnidad);
             var escenario = EvaluarEscenario(volumenAcumulado, caudalEntrada, potencia);
 
             volumenAcumulado = escenario.VolumenFinal;
@@ -68,7 +74,7 @@ internal static class SimuladorLaPerla
             resultados[^1].Acumulado,
             resultados.Min(r => r.Nivel),
             resultados.Max(r => r.Nivel),
-            PotenciaUnidadMw,
+            potenciaUnidad,
             resultados.Count(r => r.Potencia > 0),
             true,
             DateOnly.FromDateTime(DateTime.Now),
@@ -80,13 +86,13 @@ internal static class SimuladorLaPerla
         return new SimulacionResponse(resultados, resumen);
     }
 
-    private static double ElegirPotencia(double volumenAnterior, double caudalEntrada)
+    private static double ElegirPotencia(double volumenAnterior, double caudalEntrada, double potenciaUnidad)
     {
         var nivelActual = VolumenANivel(volumenAnterior);
         if (nivelActual < NivelInicio) return 0;
 
-        var escenario = EvaluarEscenario(volumenAnterior, caudalEntrada, PotenciaUnidadMw);
-        return escenario.NivelFinal >= NivelMinimo ? PotenciaUnidadMw : 0;
+        var escenario = EvaluarEscenario(volumenAnterior, caudalEntrada, potenciaUnidad);
+        return escenario.NivelFinal >= NivelMinimo ? potenciaUnidad : 0;
     }
 
     private static double CalcularCaudalManning(double alturaM)
@@ -209,6 +215,14 @@ internal static class SimuladorLaPerla
     }
 
     private static double Redondear2(double valor) => Math.Round(valor * 100) / 100;
+    private static double Redondear1(double valor) => Math.Round(valor * 10) / 10;
+
+    private static double ObtenerPotenciaGeneracion(double? potenciaGeneracionMw)
+    {
+        return potenciaGeneracionMw is > 0
+            ? Math.Clamp(Redondear1(potenciaGeneracionMw.Value), 0.1, 6.0)
+            : PotenciaUnidadMw;
+    }
 
     private sealed record Escenario(
         double PotenciaGenerada,

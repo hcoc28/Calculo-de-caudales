@@ -3,7 +3,7 @@
  * Maneja todas las actualizaciones del DOM y eventos
  */
 
-import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260526-proyecciones';
+import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260527-potencia';
 
 // ============================================
 // ESTADO GLOBAL
@@ -20,7 +20,8 @@ function redondear2(valor) {
 export function obtenerEntradasFormulario() {
   const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
   const alturaCanal = parseFloat(document.getElementById("alturaCanal")?.value);
-  return { nivelInicial, alturaCanal };
+  const potenciaGeneracion = parseFloat(document.getElementById("potenciaGeneracion")?.value);
+  return { nivelInicial, alturaCanal, potenciaGeneracion };
 }
 
 /**
@@ -31,6 +32,9 @@ export function validarEntradas(plantaId = "cafetal") {
   const { nivelInicial } = obtenerEntradasFormulario();
   if (isNaN(nivelInicial)) return false;
   if (nivelInicial < planta.nivelMinimo || nivelInicial > planta.nivelMaximo) return false;
+  const { potenciaGeneracion } = obtenerEntradasFormulario();
+  if (isNaN(potenciaGeneracion)) return false;
+  if (potenciaGeneracion <= 0 || potenciaGeneracion > planta.potenciaMaxima) return false;
   return true;
 }
 
@@ -44,6 +48,16 @@ export function aplicarPlanta(plantaId) {
   document.getElementById("etiquetaNivelInicial").textContent =
     `Nivel Inicial (${planta.nivelMinimo} - ${planta.nivelMaximo} msnm)`;
   document.getElementById("nivelInicial").placeholder = `Ej. ${planta.nivelEjemplo}`;
+  const potenciaInput = document.getElementById("potenciaGeneracion");
+  const potenciaEtiqueta = document.getElementById("etiquetaPotenciaGeneracion");
+  if (potenciaInput) {
+    potenciaInput.value = String(planta.potenciaDefecto);
+    potenciaInput.max = String(planta.potenciaMaxima);
+    potenciaInput.placeholder = `Ej. ${planta.potenciaDefecto}`;
+  }
+  if (potenciaEtiqueta) {
+    potenciaEtiqueta.textContent = `Potencia de generación (0.1 - ${planta.potenciaMaxima} MW)`;
+  }
   document.getElementById("grupoAlturaCanal").classList.toggle("oculto", planta.id !== "la-perla");
 
   document.querySelectorAll(".boton-planta").forEach(boton => {
@@ -366,7 +380,7 @@ export function actualizarListaProyecciones(proyecciones, plantaNombre) {
         <span>${fecha}</span>
         <span>${Number(proyeccion.nivelFinal).toFixed(2)} msnm</span>
       </div>
-      <div class="meta-item-proyeccion">Nivel inicial ${Number(proyeccion.nivelInicial).toFixed(2)} | ${proyeccion.horasProduccion} h producción</div>
+      <div class="meta-item-proyeccion">Nivel inicial ${Number(proyeccion.nivelInicial).toFixed(2)} | Potencia ${Number(proyeccion.potenciaGeneracion ?? 0).toFixed(1)} MW | ${proyeccion.horasProduccion} h producción</div>
     `;
     lista.appendChild(boton);
   });
@@ -397,6 +411,10 @@ export function actualizarDetalleProyeccion(proyeccion) {
     <div class="dato-real">
       <div class="etiqueta-dato-real">Patrón QE</div>
       <div class="valor-dato-real">${proyeccion.fechaPatron ?? "--"}</div>
+    </div>
+    <div class="dato-real">
+      <div class="etiqueta-dato-real">Potencia</div>
+      <div class="valor-dato-real">${Number(proyeccion.potenciaGeneracion ?? proyeccion.resumen.potenciaElegida).toFixed(1)} MW</div>
     </div>
     <div class="dato-real">
       <div class="etiqueta-dato-real">Producción</div>

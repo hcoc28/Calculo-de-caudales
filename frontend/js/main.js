@@ -14,7 +14,7 @@ import {
   extraerClimaDiario,
   extraerClimaHorario,
   extraerDatosLluvia
-} from './api.js?v=20260526-proyecciones';
+} from './api.js?v=20260527-potencia';
 import {
   obtenerEntradasFormulario,
   validarEntradas,
@@ -31,8 +31,8 @@ import {
   actualizarListaProyecciones,
   aplicarVista,
   aplicarPlanta
-} from './ui.js?v=20260526-proyecciones';
-import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260526-proyecciones';
+} from './ui.js?v=20260527-potencia';
+import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260527-potencia';
 
 let patronEntradaReal = null;
 let fechaPatronEntrada = null;
@@ -107,8 +107,8 @@ async function actualizarTodo() {
 
     if (!validarEntradas(plantaActual)) return;
 
-    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
-    const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
+    const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
+    const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, potenciaGeneracion);
     llenarTablaResultados(resultados);
   }
 }
@@ -135,8 +135,8 @@ async function renderizarDesdeDatosClima(datosClima) {
   // Ejecutar simulación si inputs son válidos
   if (!validarEntradas(plantaActual)) return;
 
-  const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
-  const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
+  const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
+  const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, potenciaGeneracion);
   llenarTablaResultados(resultados);
   if ((PLANTAS[plantaActual] ?? PLANTAS.cafetal).usaCora) {
     establecerEstadoEmbalse(`Patrón QE ${fechaPatronEntrada}`);
@@ -148,7 +148,7 @@ async function renderizarDesdeDatosClima(datosClima) {
  */
 async function manejarCalculoManual() {
   const planta = PLANTAS[plantaActual] ?? PLANTAS.cafetal;
-  const { nivelInicial } = obtenerEntradasFormulario();
+  const { nivelInicial, potenciaGeneracion } = obtenerEntradasFormulario();
 
   if (isNaN(nivelInicial)) {
     alert("Ingresa un nivel inicial válido.");
@@ -160,6 +160,11 @@ async function manejarCalculoManual() {
     return;
   }
 
+  if (isNaN(potenciaGeneracion) || potenciaGeneracion <= 0 || potenciaGeneracion > planta.potenciaMaxima) {
+    alert(`La potencia debe estar entre 0.1 y ${planta.potenciaMaxima} MW.`);
+    return;
+  }
+
   try {
     establecerBotonCargando(true);
     establecerEstadoClima("Clima: obteniendo datos reales...");
@@ -167,8 +172,14 @@ async function manejarCalculoManual() {
     await actualizarPanelEmbalse();
     const datosClima = await obtenerDatosClima();
     await renderizarDesdeDatosClima(datosClima);
-    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
-    const simulacionGuardada = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, true);
+    const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
+    const simulacionGuardada = await obtenerSimulacion(
+      plantaActual,
+      nivelInicial,
+      alturaCanal,
+      potenciaGeneracion,
+      true
+    );
     llenarTablaResultados(simulacionGuardada.resultados);
     await cargarProyecciones();
     if (simulacionGuardada.proyeccionId) {

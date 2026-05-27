@@ -4,6 +4,7 @@ internal sealed record SimulacionRequest(
     string? Planta,
     double NivelInicial,
     double? AlturaCanal,
+    double? PotenciaGeneracion,
     bool Guardar = false);
 
 internal sealed record ResultadoHorarioDto(
@@ -48,6 +49,7 @@ internal sealed record ProyeccionResumenDto(
     DateTime CreadoEn,
     double NivelInicial,
     double? AlturaCanal,
+    double? PotenciaGeneracion,
     DateOnly? FechaPatron,
     double NivelFinal,
     int HorasProduccion);
@@ -58,6 +60,7 @@ internal sealed record ProyeccionDetalleDto(
     DateTime CreadoEn,
     double NivelInicial,
     double? AlturaCanal,
+    double? PotenciaGeneracion,
     DateOnly? FechaPatron,
     List<ResultadoHorarioDto> Resultados,
     ResumenSimulacionDto Resumen);

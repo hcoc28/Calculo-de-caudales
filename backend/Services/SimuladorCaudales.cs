@@ -40,25 +40,27 @@ internal static class SimuladorCaudales
     private const double NivelRebalse = 777.75;
     private const double PotenciaUnidad1 = 4.2;
     private const double PotenciaUnidad2 = 4.2;
+    private const double PotenciaMaximaDefecto = 8.3;
     private const int HorasMinimasUnidad2 = 2;
     private const int HorasMinimasAntesUnidad2 = 2;
     private const double UmbralCaudalAlto = 2.20;
     private const double MargenPosteriorObligatorio = 0.15;
     private const int HorasProyeccion = 5;
 
-    private static readonly double[] OpcionesObligatoriasCombinadas = Enumerable
-        .Range(0, (int)Math.Round((8.3 - 4.2) * 10) + 1)
-        .Select(i => Math.Round(4.2 + i * 0.1, 1))
-        .Order()
-        .ToArray();
-
-    private static readonly double PotenciaDosUnidades = Math.Min(PotenciaUnidad1 + PotenciaUnidad2, OpcionesObligatoriasCombinadas.Max());
-
-    public static SimulacionResponse SimularDia(double nivelInicial, double[] datosLluvia, PatronEntradaDto patron, EscorrentiaOptions escorrentia)
+    public static SimulacionResponse SimularDia(
+        double nivelInicial,
+        double[] datosLluvia,
+        PatronEntradaDto patron,
+        EscorrentiaOptions escorrentia,
+        double? potenciaGeneracionMw)
     {
         var volumenInicial = NivelAVolumen(nivelInicial);
         var arregloEntrada = GenerarPatronEntrada(datosLluvia, patron, nivelInicial, escorrentia);
         var areaEscorrentia = ObtenerAreaEscorrentia(nivelInicial, escorrentia);
+        var potenciaMaxima = ObtenerPotenciaGeneracion(potenciaGeneracionMw);
+        var potenciaUnidad1 = Math.Min(PotenciaUnidad1, potenciaMaxima);
+        var potenciaDosUnidades = potenciaMaxima;
+        var opcionesObligatorias = CrearOpcionesObligatorias(potenciaUnidad1, potenciaMaxima);
 
         var volumenAcumulado = volumenInicial;
         var nivelActual = nivelInicial;
@@ -79,8 +81,8 @@ internal static class SimuladorCaudales
             var promedioEntradaProyectada = CalcularPromedioEntradaProyectada(arregloEntrada, h, HorasProyeccion);
 
             var escenario0 = EvaluarEscenario(volumenAnterior, caudalEntrada, 0);
-            var escenario1 = EvaluarEscenario(volumenAnterior, caudalEntrada, PotenciaUnidad1);
-            var escenario2 = EvaluarEscenario(volumenAnterior, caudalEntrada, PotenciaDosUnidades);
+            var escenario1 = EvaluarEscenario(volumenAnterior, caudalEntrada, potenciaUnidad1);
+            var escenario2 = EvaluarEscenario(volumenAnterior, caudalEntrada, potenciaDosUnidades);
 
             var elegido = escenario0;
             var estado = "Apagada";
@@ -88,12 +90,12 @@ internal static class SimuladorCaudales
 
             if (esObligatoria)
             {
-                potenciaObligatoriaConstante ??= EncontrarPotenciaObligatoriaConstanteMaxima(volumenAnterior, arregloEntrada);
+                potenciaObligatoriaConstante ??= EncontrarPotenciaObligatoriaConstanteMaxima(volumenAnterior, arregloEntrada, opcionesObligatorias);
 
                 if (potenciaObligatoriaConstante > 0)
                 {
                     elegido = EvaluarEscenario(volumenAnterior, caudalEntrada, potenciaObligatoriaConstante.Value);
-                    nuevoModo = ObtenerCantidadUnidadesPorPotencia(elegido.PotenciaGenerada);
+                    nuevoModo = ObtenerCantidadUnidadesPorPotencia(elegido.PotenciaGenerada, potenciaUnidad1);
                     estado = "Encendida";
                     horasProduccion++;
                 }
@@ -132,7 +134,7 @@ internal static class SimuladorCaudales
                 }
                 else if (modoProduccion == 2)
                 {
-                    var bloqueViableCon2 = EsViableParaBloqueObligatorio(h, escenario2.VolumenFinal, arregloEntrada);
+                    var bloqueViableCon2 = EsViableParaBloqueObligatorio(h, escenario2.VolumenFinal, arregloEntrada, opcionesObligatorias);
 
                     if (escenario2.NivelFinal >= NivelMinimo && bloqueViableCon2)
                     {
@@ -180,8 +182,8 @@ internal static class SimuladorCaudales
                 }
                 else
                 {
-                    var bloqueViableCon2 = EsViableParaBloqueObligatorio(h, escenario2.VolumenFinal, arregloEntrada);
-                    var bloqueViableCon1 = EsViableParaBloqueObligatorio(h, escenario1.VolumenFinal, arregloEntrada);
+                    var bloqueViableCon2 = EsViableParaBloqueObligatorio(h, escenario2.VolumenFinal, arregloEntrada, opcionesObligatorias);
+                    var bloqueViableCon1 = EsViableParaBloqueObligatorio(h, escenario1.VolumenFinal, arregloEntrada, opcionesObligatorias);
 
                     if (nivelActual >= NivelRebalse && escenario2.NivelFinal >= NivelMinimo && bloqueViableCon2)
                     {
@@ -226,7 +228,7 @@ internal static class SimuladorCaudales
             resultados[^1].Acumulado,
             resultados.Min(r => r.Nivel),
             resultados.Max(r => r.Nivel),
-            PotenciaDosUnidades,
+            potenciaMaxima,
             horasProduccion,
             produccionValida,
             patron.Fecha,
@@ -247,7 +249,7 @@ internal static class SimuladorCaudales
             var entradaReal = patron.Patron[h];
             if (!entradaReal.HasValue)
             {
-                throw new InvalidOperationException($"Falta QE en base de datos para la hora {h:00}:00.");
+                throw new InvalidOperationException($"Falta QE en base de datos para la hora operativa {h + 1}.");
             }
 
             // 1 mm de lluvia sobre 1 m2 equivale a 1 litro.
@@ -381,13 +383,17 @@ internal static class SimuladorCaudales
         return valores.Length > 0 ? Redondear2(valores.Average()) : 0;
     }
 
-    private static bool EsViableParaBloqueObligatorio(int horaActual, double volumen, double[] arregloEntrada)
+    private static bool EsViableParaBloqueObligatorio(
+        int horaActual,
+        double volumen,
+        double[] arregloEntrada,
+        double[] opcionesObligatorias)
     {
         var volumenActual = volumen;
 
         for (var h = horaActual + 1; h < HorasSimulacion; h++)
         {
-            var potenciaObligatoriaMaxima = OpcionesObligatoriasCombinadas.Max();
+            var potenciaObligatoriaMaxima = opcionesObligatorias.Max();
             var potenciaGenerada = HorasObligatorias.Contains(h) ? potenciaObligatoriaMaxima : 0;
             var escenario = EvaluarEscenario(volumenActual, arregloEntrada[h], potenciaGenerada);
             volumenActual = escenario.VolumenFinal;
@@ -401,11 +407,14 @@ internal static class SimuladorCaudales
         return true;
     }
 
-    private static double EncontrarPotenciaObligatoriaConstanteMaxima(double volumenInicialBloque, double[] arregloEntrada)
+    private static double EncontrarPotenciaObligatoriaConstanteMaxima(
+        double volumenInicialBloque,
+        double[] arregloEntrada,
+        double[] opcionesObligatorias)
     {
-        for (var i = OpcionesObligatoriasCombinadas.Length - 1; i >= 0; i--)
+        for (var i = opcionesObligatorias.Length - 1; i >= 0; i--)
         {
-            var potenciaPrueba = OpcionesObligatoriasCombinadas[i];
+            var potenciaPrueba = opcionesObligatorias[i];
             var volumenActual = volumenInicialBloque;
             var esViable = true;
 
@@ -427,13 +436,36 @@ internal static class SimuladorCaudales
         return 0;
     }
 
-    private static int ObtenerCantidadUnidadesPorPotencia(double potenciaGenerada)
+    private static int ObtenerCantidadUnidadesPorPotencia(double potenciaGenerada, double potenciaUnidad1)
     {
         if (potenciaGenerada <= 0) return 0;
-        return potenciaGenerada <= PotenciaUnidad1 ? 1 : 2;
+        return potenciaGenerada <= potenciaUnidad1 ? 1 : 2;
+    }
+
+    private static double ObtenerPotenciaGeneracion(double? potenciaGeneracionMw)
+    {
+        return potenciaGeneracionMw is > 0
+            ? Math.Clamp(Redondear1(potenciaGeneracionMw.Value), 0.1, PotenciaUnidad1 + PotenciaUnidad2)
+            : PotenciaMaximaDefecto;
+    }
+
+    private static double[] CrearOpcionesObligatorias(double potenciaMinima, double potenciaMaxima)
+    {
+        var inicio = Math.Min(potenciaMinima, potenciaMaxima);
+        var pasos = Math.Max(0, (int)Math.Round((potenciaMaxima - inicio) * 10));
+        var opciones = Enumerable
+            .Range(0, pasos + 1)
+            .Select(i => Redondear1(inicio + i * 0.1))
+            .Append(Redondear1(potenciaMaxima))
+            .Distinct()
+            .Order()
+            .ToArray();
+
+        return opciones.Length > 0 ? opciones : [potenciaMaxima];
     }
 
     private static double Redondear2(double valor) => Math.Round(valor * 100) / 100;
+    private static double Redondear1(double valor) => Math.Round(valor * 10) / 10;
 
     private sealed record Escenario(
         double PotenciaGenerada,

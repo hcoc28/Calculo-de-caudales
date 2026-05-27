@@ -3,7 +3,7 @@
  * Maneja las llamadas al backend C#.
  */
 
-import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260526-proyecciones';
+import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260527-potencia';
 
 async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) {
   const controlador = new AbortController();
@@ -45,14 +45,20 @@ export async function obtenerDatosClima() {
  * Solicita al backend C# la simulación completa de 24 horas.
  * El backend obtiene QE desde PostgreSQL y lluvia desde Open-Meteo.
  */
-export async function obtenerSimulacion(planta, nivelInicial, alturaCanal = null, guardar = false) {
+export async function obtenerSimulacion(
+  planta,
+  nivelInicial,
+  alturaCanal = null,
+  potenciaGeneracion = null,
+  guardar = false
+) {
   const { urlSimulacion, tiempoEspera } = API.embalse;
 
   try {
     const respuesta = await obtenerConTiempoLimite(urlSimulacion, tiempoEspera, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planta, nivelInicial, alturaCanal, guardar })
+      body: JSON.stringify({ planta, nivelInicial, alturaCanal, potenciaGeneracion, guardar })
     });
     const datos = await leerJsonSeguro(respuesta);
 

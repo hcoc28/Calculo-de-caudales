@@ -73,11 +73,11 @@ internal sealed class CoraRepository
     public async Task<PatronEntradaDto> ObtenerPatronEntradaAsync(DateOnly fecha)
     {
         const string sql = """
-            SELECT EXTRACT(HOUR FROM hora)::int AS hora, qe
+            SELECT (EXTRACT(HOUR FROM hora)::int + 1) AS hora_operativa, qe
             FROM datos_cora
             WHERE fecha = $1
               AND qe IS NOT NULL
-            ORDER BY hora ASC
+            ORDER BY hora_operativa ASC
             """;
 
         var patron = new decimal?[24];
@@ -89,10 +89,11 @@ internal sealed class CoraRepository
 
         while (await reader.ReadAsync())
         {
-            var hora = reader.GetInt32(0);
-            if (hora is >= 0 and < 24)
+            var horaOperativa = reader.GetInt32(0);
+            var indice = horaOperativa - 1;
+            if (indice is >= 0 and < 24)
             {
-                patron[hora] = reader.GetDecimal(1);
+                patron[indice] = reader.GetDecimal(1);
                 registros++;
             }
         }

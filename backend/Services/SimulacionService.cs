@@ -41,7 +41,12 @@ internal sealed class SimulacionService
         {
             var alturaCanal = request.AlturaCanal ?? 0.50;
             var lluviaLaPerla = await ObtenerLluviaOSimulacionSecaAsync();
-            var resultadoLaPerla = SimuladorLaPerla.SimularDia(request.NivelInicial, alturaCanal, lluviaLaPerla, escorrentia);
+            var resultadoLaPerla = SimuladorLaPerla.SimularDia(
+                request.NivelInicial,
+                alturaCanal,
+                lluviaLaPerla,
+                escorrentia,
+                request.PotenciaGeneracion);
             return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultadoLaPerla));
         }
 
@@ -59,7 +64,12 @@ internal sealed class SimulacionService
         }
 
         var datosLluvia = await ObtenerLluviaOSimulacionSecaAsync();
-        var resultados = SimuladorCaudales.SimularDia(request.NivelInicial, datosLluvia, patron, escorrentia);
+        var resultados = SimuladorCaudales.SimularDia(
+            request.NivelInicial,
+            datosLluvia,
+            patron,
+            escorrentia,
+            request.PotenciaGeneracion);
         return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultados));
     }
 
@@ -73,7 +83,12 @@ internal sealed class SimulacionService
             return simulacion;
         }
 
-        var id = await proyeccionRepository.GuardarAsync(planta, request.NivelInicial, request.AlturaCanal, simulacion);
+        var id = await proyeccionRepository.GuardarAsync(
+            planta,
+            request.NivelInicial,
+            request.AlturaCanal,
+            request.PotenciaGeneracion,
+            simulacion);
         return simulacion with { ProyeccionId = id };
     }
 

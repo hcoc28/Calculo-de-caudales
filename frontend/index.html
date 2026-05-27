@@ -76,6 +76,17 @@
           aria-label="Nivel inicial del embalse"
         >
 
+        <label id="etiquetaPotenciaGeneracion" for="potenciaGeneracion">Potencia de generación (MW)</label>
+        <input
+          type="number"
+          id="potenciaGeneracion"
+          step="0.1"
+          min="0.1"
+          placeholder="Ej. 8.3"
+          value="8.3"
+          aria-label="Potencia de generación en megavatios"
+        >
+
         <div id="grupoAlturaCanal" class="campo-condicional oculto">
           <label for="alturaCanal">Altura del canal de medición (0.01 - 1.50 m)</label>
           <input
@@ -250,6 +261,6 @@
         .catch(() => {});
     }
   </script>
-  <script type="module" src="js/main.js?v=20260526-proyecciones"></script>
+  <script type="module" src="js/main.js?v=20260527-potencia"></script>
 </body>
 </html>

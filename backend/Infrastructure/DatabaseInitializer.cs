@@ -40,11 +40,15 @@ internal sealed class DatabaseInitializer
               planta TEXT NOT NULL,
               nivel_inicial DOUBLE PRECISION NOT NULL,
               altura_canal DOUBLE PRECISION,
+              potencia_generacion DOUBLE PRECISION,
               fecha_patron DATE,
               resultados JSONB NOT NULL,
               resumen JSONB NOT NULL,
               creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+
+            ALTER TABLE proyecciones
+            ADD COLUMN IF NOT EXISTS potencia_generacion DOUBLE PRECISION;
 
             CREATE INDEX IF NOT EXISTS idx_proyecciones_planta_creado
             ON proyecciones (planta, creado_en DESC);
