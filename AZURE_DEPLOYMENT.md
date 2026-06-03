@@ -71,13 +71,13 @@ CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2=
-LA_PERLA_LATITUD=15.3000
-LA_PERLA_LONGITUD=-90.0700
+LA_PERLA_LATITUD=15.640000
+LA_PERLA_LONGITUD=-90.069444
 ```
 
 No guardes secretos en GitHub ni en archivos `.env` subidos al repositorio.
 
-`LA_PERLA_LATITUD` y `LA_PERLA_LONGITUD` estan como valores aproximados de Tucuru. Cambialos cuando tengas las coordenadas exactas de la planta.
+`LA_PERLA_LATITUD` y `LA_PERLA_LONGITUD` corresponden a 15°38'24" Norte y 90°04'10" Oeste.
 
 ## Health check
 

@@ -98,8 +98,8 @@ CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2
-LA_PERLA_LATITUD=15.3000
-LA_PERLA_LONGITUD=-90.0700
+LA_PERLA_LATITUD=15.640000
+LA_PERLA_LONGITUD=-90.069444
 ```
 
 El backend escucha en `0.0.0.0` usando la variable `PORT`, que es lo que Render necesita para enrutar trafico publico.
@@ -157,8 +157,8 @@ CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2=
-LA_PERLA_LATITUD=15.3000
-LA_PERLA_LONGITUD=-90.0700
+LA_PERLA_LATITUD=15.640000
+LA_PERLA_LONGITUD=-90.069444
 ```
 
 `CORA_API_CANTIDAD=72` ayuda a recuperar suficientes lecturas para completar el dia anterior aunque el backend se arranque a media tarde.

@@ -24,6 +24,6 @@ services:
       - key: ESCORRENTIA_AREA_M2
         sync: false
       - key: LA_PERLA_LATITUD
-        value: 15.3000
+        value: 15.640000
       - key: LA_PERLA_LONGITUD
-        value: -90.0700
+        value: -90.069444

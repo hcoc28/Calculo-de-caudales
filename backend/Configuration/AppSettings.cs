@@ -50,8 +50,8 @@ internal sealed record AppSettings(
             new(
                 "la-perla",
                 "Tucuru",
-                AppConfig.GetDouble("LA_PERLA_LATITUD", 15.3000),
-                AppConfig.GetDouble("LA_PERLA_LONGITUD", -90.0700))
+                AppConfig.GetDouble("LA_PERLA_LATITUD", 15.640000),
+                AppConfig.GetDouble("LA_PERLA_LONGITUD", -90.069444))
         ];
     }
 }
