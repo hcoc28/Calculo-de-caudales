@@ -46,7 +46,11 @@ internal sealed record AppSettings(
     {
         return
         [
-            new("cafetal", "El Cafetal", 15.14375, -90.07007),
+            new(
+                "cafetal",
+                "El Cafetal",
+                AppConfig.GetDouble("CAFETAL_LATITUD", 15.22553),
+                AppConfig.GetDouble("CAFETAL_LONGITUD", -90.11064)),
             new(
                 "la-perla",
                 "Tucuru",

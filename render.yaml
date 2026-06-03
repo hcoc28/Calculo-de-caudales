@@ -23,6 +23,10 @@ services:
         value: 0.65
       - key: ESCORRENTIA_AREA_M2
         sync: false
+      - key: CAFETAL_LATITUD
+        value: 15.22553
+      - key: CAFETAL_LONGITUD
+        value: -90.11064
       - key: LA_PERLA_LATITUD
         value: 15.640000
       - key: LA_PERLA_LONGITUD

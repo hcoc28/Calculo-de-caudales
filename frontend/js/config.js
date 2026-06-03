@@ -8,8 +8,8 @@
 // ============================================
 export const UBICACION = {
   nombre: "El Cafetal",
-  latitud: 15.14375,
-  longitud: -90.07007
+  latitud: 15.22553,
+  longitud: -90.11064
 };
 
 export const PLANTAS = {
