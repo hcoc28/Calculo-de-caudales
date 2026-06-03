@@ -73,6 +73,29 @@ internal sealed class SimulacionService
         return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultados));
     }
 
+    public async Task<IResult> ActualizarPotenciasAsync(long proyeccionId, AjustePotenciasRequest request)
+    {
+        if (request.Potencias.Length != SimuladorCaudales.HorasSimulacion)
+        {
+            return Results.BadRequest(new { error = "Debe enviar exactamente 24 valores de potencia." });
+        }
+
+        var proyeccion = await proyeccionRepository.ObtenerAsync(proyeccionId);
+        if (proyeccion is null)
+        {
+            return Results.NotFound(new { error = "Proyeccion no encontrada." });
+        }
+
+        var planta = NormalizarPlanta(proyeccion.Planta);
+        var simulacion = planta == "la-perla"
+            ? SimuladorLaPerla.RecalcularConPotencias(proyeccion, request.Potencias)
+            : SimuladorCaudales.RecalcularConPotencias(proyeccion, request.Potencias);
+
+        await proyeccionRepository.ActualizarResultadosAsync(proyeccionId, simulacion);
+        var actualizada = await proyeccionRepository.ObtenerAsync(proyeccionId);
+        return Results.Ok(actualizada);
+    }
+
     private async Task<SimulacionResponse> GuardarSiCorrespondeAsync(
         SimulacionRequest request,
         string planta,

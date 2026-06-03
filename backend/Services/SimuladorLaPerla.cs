@@ -86,6 +86,47 @@ internal static class SimuladorLaPerla
         return new SimulacionResponse(resultados, resumen);
     }
 
+    public static SimulacionResponse RecalcularConPotencias(ProyeccionDetalleDto proyeccion, double[] potencias)
+    {
+        var resultadosOriginales = proyeccion.Resultados;
+        var resultados = new List<ResultadoHorarioDto>();
+        var volumenAcumulado = proyeccion.Resumen.VolumenInicial;
+
+        for (var h = 0; h < resultadosOriginales.Count; h++)
+        {
+            var original = resultadosOriginales[h];
+            var potencia = h < potencias.Length ? NormalizarPotenciaManual(potencias[h]) : original.Potencia;
+            var escenario = EvaluarEscenario(volumenAcumulado, original.CaudalIngreso, potencia);
+
+            volumenAcumulado = escenario.VolumenFinal;
+            resultados.Add(new ResultadoHorarioDto(
+                original.De,
+                original.A,
+                escenario.PotenciaGenerada,
+                escenario.Salida,
+                escenario.VolumenTurbinado,
+                original.CaudalIngreso,
+                escenario.VolumenPorHora,
+                escenario.Diferencia,
+                escenario.VolumenFinal,
+                escenario.NivelFinal,
+                escenario.PotenciaGenerada > 0 ? "Editada" : "Apagada"));
+        }
+
+        var resumen = proyeccion.Resumen with
+        {
+            NivelFinal = resultados[^1].Nivel,
+            VolumenFinal = resultados[^1].Acumulado,
+            NivelMinimo = resultados.Min(r => r.Nivel),
+            NivelMaximo = resultados.Max(r => r.Nivel),
+            PotenciaElegida = resultados.Max(r => r.Potencia),
+            HorasProduccion = resultados.Count(r => r.Potencia > 0),
+            ProduccionValida = resultados.All(r => r.Nivel >= NivelMinimo)
+        };
+
+        return new SimulacionResponse(resultados, resumen, proyeccion.Id);
+    }
+
     private static double ElegirPotencia(double volumenAnterior, double caudalEntrada, double potenciaUnidad)
     {
         var nivelActual = VolumenANivel(volumenAnterior);
@@ -222,6 +263,12 @@ internal static class SimuladorLaPerla
         return potenciaGeneracionMw is > 0
             ? Math.Clamp(Redondear1(potenciaGeneracionMw.Value), 0.1, 6.0)
             : PotenciaUnidadMw;
+    }
+
+    private static double NormalizarPotenciaManual(double potencia)
+    {
+        if (!double.IsFinite(potencia) || potencia <= 0) return 0;
+        return Math.Clamp(Redondear1(potencia), 0, 6.0);
     }
 
     private sealed record Escenario(

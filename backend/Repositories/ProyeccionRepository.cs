@@ -121,4 +121,23 @@ internal sealed class ProyeccionRepository
             resultados,
             resumen);
     }
+
+    public async Task ActualizarResultadosAsync(long id, SimulacionResponse simulacion)
+    {
+        const string sql = """
+            UPDATE proyecciones
+            SET
+              potencia_generacion = $2,
+              resultados = $3::jsonb,
+              resumen = $4::jsonb
+            WHERE id = $1
+            """;
+
+        await using var command = db.CreateCommand(sql);
+        command.Parameters.AddWithValue(id);
+        command.Parameters.AddWithValue(simulacion.Resumen.PotenciaElegida);
+        command.Parameters.AddWithValue(JsonSerializer.Serialize(simulacion.Resultados, JsonOptions));
+        command.Parameters.AddWithValue(JsonSerializer.Serialize(simulacion.Resumen, JsonOptions));
+        await command.ExecuteNonQueryAsync();
+    }
 }

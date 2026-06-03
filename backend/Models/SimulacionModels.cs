@@ -43,6 +43,8 @@ internal sealed record SimulacionResponse(
 
 internal sealed record EscorrentiaOptions(double Coeficiente, double? AreaAporteM2);
 
+internal sealed record AjustePotenciasRequest(double[] Potencias);
+
 internal sealed record ProyeccionResumenDto(
     long Id,
     string Planta,

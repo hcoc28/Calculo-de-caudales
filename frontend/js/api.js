@@ -3,7 +3,7 @@
  * Maneja las llamadas al backend C#.
  */
 
-import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260527-potencia';
+import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260603-edicion-potencia';
 
 async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) {
   const controlador = new AbortController();
@@ -142,6 +142,22 @@ export async function obtenerProyeccion(id) {
 
   if (!respuesta.ok) {
     throw new Error(datos?.error ?? `Error al obtener proyección: ${respuesta.status}`);
+  }
+
+  return datos;
+}
+
+export async function actualizarPotenciasProyeccion(id, potencias) {
+  const { urlProyecciones, tiempoEspera } = API.embalse;
+  const respuesta = await obtenerConTiempoLimite(`${urlProyecciones}/${id}/potencias`, tiempoEspera, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ potencias })
+  });
+  const datos = await leerJsonSeguro(respuesta);
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error ?? `Error al actualizar potencia: ${respuesta.status}`);
   }
 
   return datos;

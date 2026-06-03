@@ -3,7 +3,7 @@
  * Maneja todas las actualizaciones del DOM y eventos
  */
 
-import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260527-potencia';
+import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260603-edicion-potencia';
 
 // ============================================
 // ESTADO GLOBAL
@@ -20,8 +20,7 @@ function redondear2(valor) {
 export function obtenerEntradasFormulario() {
   const nivelInicial = parseFloat(document.getElementById("nivelInicial").value);
   const alturaCanal = parseFloat(document.getElementById("alturaCanal")?.value);
-  const potenciaGeneracion = parseFloat(document.getElementById("potenciaGeneracion")?.value);
-  return { nivelInicial, alturaCanal, potenciaGeneracion };
+  return { nivelInicial, alturaCanal };
 }
 
 /**
@@ -32,9 +31,6 @@ export function validarEntradas(plantaId = "cafetal") {
   const { nivelInicial } = obtenerEntradasFormulario();
   if (isNaN(nivelInicial)) return false;
   if (nivelInicial < planta.nivelMinimo || nivelInicial > planta.nivelMaximo) return false;
-  const { potenciaGeneracion } = obtenerEntradasFormulario();
-  if (isNaN(potenciaGeneracion)) return false;
-  if (potenciaGeneracion <= 0 || potenciaGeneracion > planta.potenciaMaxima) return false;
   return true;
 }
 
@@ -48,16 +44,6 @@ export function aplicarPlanta(plantaId) {
   document.getElementById("etiquetaNivelInicial").textContent =
     `Nivel Inicial (${planta.nivelMinimo} - ${planta.nivelMaximo} msnm)`;
   document.getElementById("nivelInicial").placeholder = `Ej. ${planta.nivelEjemplo}`;
-  const potenciaInput = document.getElementById("potenciaGeneracion");
-  const potenciaEtiqueta = document.getElementById("etiquetaPotenciaGeneracion");
-  if (potenciaInput) {
-    potenciaInput.value = String(planta.potenciaDefecto);
-    potenciaInput.max = String(planta.potenciaMaxima);
-    potenciaInput.placeholder = `Ej. ${planta.potenciaDefecto}`;
-  }
-  if (potenciaEtiqueta) {
-    potenciaEtiqueta.textContent = `Potencia de generación (0.1 - ${planta.potenciaMaxima} MW)`;
-  }
   document.getElementById("grupoAlturaCanal").classList.toggle("oculto", planta.id !== "la-perla");
 
   document.querySelectorAll(".boton-planta").forEach(boton => {
@@ -325,12 +311,12 @@ function llenarTabla(selectorTabla, resultados) {
 
   cuerpoTabla.innerHTML = "";
 
-  resultados.forEach(r => {
+  resultados.forEach((r, indice) => {
     const fila = document.createElement("tr");
     fila.innerHTML = `
       <td>${String(r.de).padStart(2, "0")}:00</td>
       <td>${String(r.a).padStart(2, "0")}:00</td>
-      <td>${r.potencia.toFixed(2)}</td>
+      <td class="celda-potencia-editable" data-columna="potencia" data-indice="${indice}" title="Doble click para editar">${r.potencia.toFixed(2)}</td>
       <td>${r.caudalSalida.toFixed(2)}</td>
       <td>${r.volumenTurbinado.toFixed(2)}</td>
       <td>${r.caudalIngreso.toFixed(2)}</td>
@@ -380,7 +366,7 @@ export function actualizarListaProyecciones(proyecciones, plantaNombre) {
         <span>${fecha}</span>
         <span>${Number(proyeccion.nivelFinal).toFixed(2)} msnm</span>
       </div>
-      <div class="meta-item-proyeccion">Nivel inicial ${Number(proyeccion.nivelInicial).toFixed(2)} | Potencia ${Number(proyeccion.potenciaGeneracion ?? 0).toFixed(1)} MW | ${proyeccion.horasProduccion} h producción</div>
+      <div class="meta-item-proyeccion">Nivel inicial ${Number(proyeccion.nivelInicial).toFixed(2)} | Potencia ${Number(proyeccion.potenciaGeneracion ?? proyeccion.potenciaElegida ?? 0).toFixed(1)} MW | ${proyeccion.horasProduccion} h producción</div>
     `;
     lista.appendChild(boton);
   });

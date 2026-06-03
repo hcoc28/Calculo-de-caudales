@@ -18,6 +18,7 @@ internal static class CaudalesEndpoints
         app.MapPost("/api/simulacion", SimularAsync);
         app.MapGet("/api/proyecciones", ListarProyeccionesAsync);
         app.MapGet("/api/proyecciones/{id:long}", ObtenerProyeccionAsync);
+        app.MapPatch("/api/proyecciones/{id:long}/potencias", ActualizarPotenciasAsync);
 
         return app;
     }
@@ -76,6 +77,14 @@ internal static class CaudalesEndpoints
     {
         var proyeccion = await repository.ObtenerAsync(id);
         return proyeccion is null ? Results.NotFound(new { error = "Proyeccion no encontrada." }) : Results.Ok(proyeccion);
+    }
+
+    private static async Task<IResult> ActualizarPotenciasAsync(
+        long id,
+        AjustePotenciasRequest request,
+        SimulacionService service)
+    {
+        return await service.ActualizarPotenciasAsync(id, request);
     }
 
     private static string? NormalizarPlanta(string? planta)

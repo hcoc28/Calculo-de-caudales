@@ -7,6 +7,7 @@ import {
   obtenerDatosClima,
   obtenerDatosEmbalse,
   obtenerPatronEntradaEmbalse,
+  actualizarPotenciasProyeccion,
   obtenerProyeccion,
   obtenerProyecciones,
   obtenerSimulacion,
@@ -14,7 +15,7 @@ import {
   extraerClimaDiario,
   extraerClimaHorario,
   extraerDatosLluvia
-} from './api.js?v=20260527-potencia';
+} from './api.js?v=20260603-edicion-potencia';
 import {
   obtenerEntradasFormulario,
   validarEntradas,
@@ -31,13 +32,15 @@ import {
   actualizarListaProyecciones,
   aplicarVista,
   aplicarPlanta
-} from './ui.js?v=20260527-potencia';
-import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260527-potencia';
+} from './ui.js?v=20260603-edicion-potencia';
+import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260603-edicion-potencia';
 
 let patronEntradaReal = null;
 let fechaPatronEntrada = null;
 let plantaActual = "cafetal";
 let vistaActual = "proyeccion";
+let proyeccionActualId = null;
+let proyeccionGuardadaActualId = null;
 
 function redondear2(valor) {
   return Math.round(valor * 100) / 100;
@@ -107,8 +110,8 @@ async function actualizarTodo() {
 
     if (!validarEntradas(plantaActual)) return;
 
-    const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
-    const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, potenciaGeneracion);
+    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+    const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
     llenarTablaResultados(resultados);
   }
 }
@@ -135,8 +138,8 @@ async function renderizarDesdeDatosClima(datosClima) {
   // Ejecutar simulación si inputs son válidos
   if (!validarEntradas(plantaActual)) return;
 
-  const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
-  const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, potenciaGeneracion);
+  const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+  const { resultados } = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal);
   llenarTablaResultados(resultados);
   if ((PLANTAS[plantaActual] ?? PLANTAS.cafetal).usaCora) {
     establecerEstadoEmbalse(`Patrón QE ${fechaPatronEntrada}`);
@@ -148,7 +151,7 @@ async function renderizarDesdeDatosClima(datosClima) {
  */
 async function manejarCalculoManual() {
   const planta = PLANTAS[plantaActual] ?? PLANTAS.cafetal;
-  const { nivelInicial, potenciaGeneracion } = obtenerEntradasFormulario();
+  const { nivelInicial } = obtenerEntradasFormulario();
 
   if (isNaN(nivelInicial)) {
     alert("Ingresa un nivel inicial válido.");
@@ -160,11 +163,6 @@ async function manejarCalculoManual() {
     return;
   }
 
-  if (isNaN(potenciaGeneracion) || potenciaGeneracion <= 0 || potenciaGeneracion > planta.potenciaMaxima) {
-    alert(`La potencia debe estar entre 0.1 y ${planta.potenciaMaxima} MW.`);
-    return;
-  }
-
   try {
     establecerBotonCargando(true);
     establecerEstadoClima("Clima: obteniendo datos reales...");
@@ -172,14 +170,9 @@ async function manejarCalculoManual() {
     await actualizarPanelEmbalse();
     const datosClima = await obtenerDatosClima();
     await renderizarDesdeDatosClima(datosClima);
-    const { nivelInicial, alturaCanal, potenciaGeneracion } = obtenerEntradasFormulario();
-    const simulacionGuardada = await obtenerSimulacion(
-      plantaActual,
-      nivelInicial,
-      alturaCanal,
-      potenciaGeneracion,
-      true
-    );
+    const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
+    const simulacionGuardada = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, null, true);
+    proyeccionActualId = simulacionGuardada.proyeccionId ?? null;
     llenarTablaResultados(simulacionGuardada.resultados);
     await cargarProyecciones();
     if (simulacionGuardada.proyeccionId) {
@@ -213,7 +206,87 @@ async function manejarSeleccionProyeccion(evento) {
   boton.classList.add("activo");
 
   const proyeccion = await obtenerProyeccion(boton.dataset.proyeccionId);
+  proyeccionGuardadaActualId = proyeccion.id;
   actualizarDetalleProyeccion(proyeccion);
+}
+
+function obtenerPotenciasDesdeTabla(tabla) {
+  return Array.from(tabla.querySelectorAll('[data-columna="potencia"]'))
+    .map(celda => Number(celda.textContent));
+}
+
+function crearInputPotencia(celda, valorActual) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.1";
+  input.min = "0";
+  input.value = valorActual.toFixed(2);
+  input.className = "input-potencia-tabla";
+  celda.textContent = "";
+  celda.appendChild(input);
+  input.focus();
+  input.select();
+  return input;
+}
+
+async function confirmarEdicionPotencia(tabla, celda, input, proyeccionId, esTablaPrincipal) {
+  const valorNuevo = Number(input.value);
+  if (!Number.isFinite(valorNuevo) || valorNuevo < 0) {
+    alert("Ingresa una potencia válida.");
+    celda.textContent = input.defaultValue;
+    return;
+  }
+
+  const indice = Number(celda.dataset.indice);
+  const potencias = obtenerPotenciasDesdeTabla(tabla);
+  potencias[indice] = valorNuevo;
+  celda.textContent = valorNuevo.toFixed(2);
+
+  const proyeccionActualizada = await actualizarPotenciasProyeccion(proyeccionId, potencias);
+  if (esTablaPrincipal) {
+    llenarTablaResultados(proyeccionActualizada.resultados);
+  } else {
+    actualizarDetalleProyeccion(proyeccionActualizada);
+  }
+  await cargarProyecciones();
+}
+
+function manejarEdicionPotencia(evento) {
+  const celda = evento.target.closest('[data-columna="potencia"]');
+  if (!celda || celda.querySelector("input")) return;
+
+  const tabla = celda.closest("table");
+  const esTablaPrincipal = tabla?.id === "tablaResultados";
+  const proyeccionId = esTablaPrincipal ? proyeccionActualId : proyeccionGuardadaActualId;
+  if (!proyeccionId) {
+    alert("Primero crea o selecciona una proyección guardada.");
+    return;
+  }
+
+  const valorActual = Number(celda.textContent);
+  const input = crearInputPotencia(celda, Number.isFinite(valorActual) ? valorActual : 0);
+  let confirmado = false;
+
+  const confirmar = async () => {
+    if (confirmado) return;
+    confirmado = true;
+    try {
+      await confirmarEdicionPotencia(tabla, celda, input, proyeccionId, esTablaPrincipal);
+    } catch (error) {
+      console.error("Error al editar potencia:", error);
+      alert(error.message ?? "No se pudo actualizar la potencia.");
+      celda.textContent = Number.isFinite(valorActual) ? valorActual.toFixed(2) : "--";
+    }
+  };
+
+  input.addEventListener("keydown", eventoTecla => {
+    if (eventoTecla.key === "Enter") confirmar();
+    if (eventoTecla.key === "Escape") {
+      confirmado = true;
+      celda.textContent = Number.isFinite(valorActual) ? valorActual.toFixed(2) : "--";
+    }
+  });
+  input.addEventListener("blur", confirmar);
 }
 
 async function cambiarVista(vista) {
@@ -241,6 +314,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       plantaActual = boton.dataset.planta ?? "cafetal";
       patronEntradaReal = null;
       fechaPatronEntrada = null;
+      proyeccionActualId = null;
+      proyeccionGuardadaActualId = null;
       aplicarPlanta(plantaActual);
       boton.closest(".menu-plantas")?.removeAttribute("open");
       llenarTablaResultados([]);
@@ -256,6 +331,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.getElementById("listaProyecciones")?.addEventListener("click", manejarSeleccionProyeccion);
+  document.getElementById("tablaResultados")?.addEventListener("dblclick", manejarEdicionPotencia);
+  document.getElementById("tablaProyeccionGuardada")?.addEventListener("dblclick", manejarEdicionPotencia);
 
   if (botonCalcular) {
     botonCalcular.addEventListener("click", manejarCalculoManual);

@@ -19,8 +19,6 @@ export const PLANTAS = {
     nivelMinimo: 770,
     nivelMaximo: 778,
     nivelEjemplo: "775.80",
-    potenciaDefecto: 8.3,
-    potenciaMaxima: 8.4,
     usaCora: true
   },
   "la-perla": {
@@ -29,8 +27,6 @@ export const PLANTAS = {
     nivelMinimo: 595,
     nivelMaximo: 600,
     nivelEjemplo: "598.50",
-    potenciaDefecto: 3.6,
-    potenciaMaxima: 6.0,
     usaCora: false
   }
 };
