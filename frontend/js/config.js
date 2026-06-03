@@ -27,7 +27,7 @@ export const PLANTAS = {
     nivelMinimo: 595,
     nivelMaximo: 600,
     nivelEjemplo: "598.50",
-    usaCora: false
+    usaCora: true
   }
 };
 

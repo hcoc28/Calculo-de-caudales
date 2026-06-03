@@ -10,6 +10,12 @@ internal static class AppConfig
             ?? throw new InvalidOperationException($"Falta configurar {key}.");
     }
 
+    public static string? GetOptional(string key)
+    {
+        var value = Environment.GetEnvironmentVariable(key);
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
     public static string GetPostgresConnectionString(string key)
     {
         var value = GetRequired(key);

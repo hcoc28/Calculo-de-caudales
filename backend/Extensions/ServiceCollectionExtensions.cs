@@ -15,6 +15,7 @@ internal static class ServiceCollectionExtensions
     {
         services.AddSingleton(new NpgsqlDataSourceBuilder(settings.ConnectionString).Build());
         services.AddSingleton(settings.Cora);
+        services.AddSingleton(settings.Clima);
         services.AddSingleton(settings.Sync);
         services.AddSingleton(settings.Escorrentia);
         services.AddSingleton<DatabaseInitializer>();

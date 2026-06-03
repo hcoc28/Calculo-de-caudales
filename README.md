@@ -5,14 +5,14 @@ Sistema para consultar datos horarios de CORA, guardarlos en PostgreSQL y simula
 ## Que hace
 
 - Consulta la API CORA desde ASP.NET Core.
-- Guarda en PostgreSQL: fecha, hora, nivel, QE, QS, QV, potencia activa, clima y JSON original.
+- Guarda en PostgreSQL por planta: fecha, hora, nivel, QE, QS, QV, potencia activa, clima y JSON original.
 - Sincroniza CORA automaticamente aunque la pagina web no este abierta.
 - Usa el QE del dia anterior como patron operativo de 24 horas para la proyeccion del dia siguiente.
 - Consulta clima desde el backend.
 - Permite navegar entre dos plantas: El Cafetal y La Perla.
 - Guarda proyecciones realizadas y permite consultarlas por planta.
 - Permite editar la potencia de una proyeccion guardada con doble click sobre la celda de potencia.
-- Para La Perla usa el metodo del documento de Hidrosacpur: Manning para caudal de entrada, tabla volumen/nivel 595-600 msnm y caudal turbinado por potencia/eficiencia.
+- Para La Perla usa datos CORA para el patron de entrada, clima de Tucuru y conserva su tabla volumen/nivel 595-600 msnm y caudal turbinado por potencia/eficiencia.
 - Suma la lluvia directamente al caudal de entrada usando escorrentia:
 
 ```text
@@ -92,11 +92,14 @@ Variables que debes configurar en Render:
 ```text
 DATABASE_URL
 CORA_API_URL
+CORA_API_URL_LA_PERLA
 CORA_API_CANTIDAD=72
 CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2
+LA_PERLA_LATITUD=15.3000
+LA_PERLA_LONGITUD=-90.0700
 ```
 
 El backend escucha en `0.0.0.0` usando la variable `PORT`, que es lo que Render necesita para enrutar trafico publico.
@@ -148,11 +151,14 @@ Copia `backend/.env.example` como `backend/.env` y coloca tus datos reales:
 PORT=4000
 DATABASE_URL=postgres://caudales_user:TU_PASSWORD@localhost:5432/calculo_caudales
 CORA_API_URL=https://cora.cavcenergy.com/api/plants/embalselectura/embalseion/ultimos/f595b230-39b2-460e-96f2-f397e5f91f38
+CORA_API_URL_LA_PERLA=
 CORA_API_CANTIDAD=72
 CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2=
+LA_PERLA_LATITUD=15.3000
+LA_PERLA_LONGITUD=-90.0700
 ```
 
 `CORA_API_CANTIDAD=72` ayuda a recuperar suficientes lecturas para completar el dia anterior aunque el backend se arranque a media tarde.
@@ -164,10 +170,10 @@ ESCORRENTIA_AREA_M2=
 ```text
 GET  /api/salud
 GET  /api/estado
-GET  /api/cora/datos?cantidad=72
-GET  /api/cora/patron-entrada
-POST /api/cora/sincronizar
-GET  /api/clima
+GET  /api/cora/datos?planta=cafetal&cantidad=72
+GET  /api/cora/patron-entrada?planta=la-perla
+POST /api/cora/sincronizar?planta=la-perla
+GET  /api/clima?planta=la-perla
 POST /api/simulacion
 GET  /api/proyecciones?planta=cafetal
 GET  /api/proyecciones/{id}

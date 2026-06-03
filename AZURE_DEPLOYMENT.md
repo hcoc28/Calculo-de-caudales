@@ -65,14 +65,19 @@ PORT=4000
 WEBSITES_PORT=4000
 DATABASE_URL=Host=TU_SERVIDOR.postgres.database.azure.com;Port=5432;Database=calculo_caudales;Username=TU_USUARIO;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
 CORA_API_URL=https://cora.cavcenergy.com/api/plants/embalselectura/embalseion/ultimos/f595b230-39b2-460e-96f2-f397e5f91f38
+CORA_API_URL_LA_PERLA=URL_CORA_DE_LA_PERLA
 CORA_API_CANTIDAD=72
 CORA_SYNC_MINUTES=10
 CORA_SYNC_ON_START=true
 ESCORRENTIA_COEFICIENTE=0.65
 ESCORRENTIA_AREA_M2=
+LA_PERLA_LATITUD=15.3000
+LA_PERLA_LONGITUD=-90.0700
 ```
 
 No guardes secretos en GitHub ni en archivos `.env` subidos al repositorio.
+
+`LA_PERLA_LATITUD` y `LA_PERLA_LONGITUD` estan como valores aproximados de Tucuru. Cambialos cuando tengas las coordenadas exactas de la planta.
 
 ## Health check
 

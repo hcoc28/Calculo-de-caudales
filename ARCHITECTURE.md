@@ -10,7 +10,7 @@ CORA
   -> Frontend
 ```
 
-El navegador no consulta CORA directamente. Todo dato CORA pasa por el backend C# y queda guardado en PostgreSQL. La Perla no usa CORA en esta version; usa el metodo local documentado por Hidrosacpur.
+El navegador no consulta CORA directamente. Todo dato CORA pasa por el backend C# y queda guardado en PostgreSQL por planta. El Cafetal y La Perla pueden sincronizar CORA si sus URLs estan configuradas.
 
 ## Simulacion
 
@@ -18,8 +18,8 @@ El navegador no consulta CORA directamente. Todo dato CORA pasa por el backend C
 Frontend envia planta y nivel inicial
   -> POST /api/simulacion
   -> C# elige simulador segun planta
-  -> El Cafetal lee QE del dia anterior desde PostgreSQL
-  -> La Perla calcula entrada con Manning
+  -> C# lee QE del dia anterior desde PostgreSQL segun la planta
+  -> La Perla conserva su tabla volumen/nivel y formula de potencia/eficiencia
   -> C# consulta lluvia horaria
   -> C# suma escorrentia al QE
   -> C# calcula potencia, salida, volumen y nivel
@@ -48,9 +48,9 @@ Donde:
 - `Program.cs`: arranque del servidor. Debe quedarse pequeno.
 - `Configuration/`: carga `.env`, parsea variables y arma `AppSettings`.
 - `Clients/`: contiene `CoraClient` y `WeatherClient`.
-- `Repositories/`: contiene `CoraRepository`, la unica clase que escribe y lee PostgreSQL.
+- `Repositories/`: contiene `CoraRepository` y `ProyeccionRepository`, las clases que escriben y leen PostgreSQL.
 - `Services/`: contiene `CoraSyncService`, `SimulacionService` y `SimuladorCaudales`.
-- `Services/SimuladorLaPerla.cs`: Manning, tabla de embalse La Perla y potencia/eficiencia del documento.
+- `Services/SimuladorLaPerla.cs`: tabla de embalse La Perla y potencia/eficiencia del documento; puede usar patron CORA como entrada.
 - `Models/`: contiene records/DTOs usados por API, CORA y simulacion.
 - `Endpoints/`: contiene las rutas HTTP.
 - `Extensions/`: registra servicios y configura archivos estaticos.
@@ -80,7 +80,7 @@ si CORA_SYNC_ON_START=true -> sincroniza inmediatamente
 Luego:
 
 ```text
-cada CORA_SYNC_MINUTES -> consulta CORA -> guarda o actualiza PostgreSQL
+cada CORA_SYNC_MINUTES -> consulta CORA por planta configurada -> guarda o actualiza PostgreSQL
 ```
 
 ## Puerto unico

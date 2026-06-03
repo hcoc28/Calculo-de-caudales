@@ -41,33 +41,45 @@ internal static class CaudalesEndpoints
         return Results.Ok(new { ok = true, db = new { ahora } });
     }
 
-    private static async Task<IResult> ObtenerDatosCoraAsync(int? cantidad, CoraRepository repository)
+    private static async Task<IResult> ObtenerDatosCoraAsync(string? planta, int? cantidad, CoraRepository repository)
     {
         var limite = Math.Clamp(cantidad ?? 24, 1, 500);
-        var datos = await repository.ListarDatosAsync(limite);
+        var datos = await repository.ListarDatosAsync(NormalizarPlanta(planta) ?? "cafetal", limite);
         return Results.Ok(datos);
     }
 
-    private static async Task<IResult> ObtenerPatronEntradaAsync(string? fecha, CoraRepository repository)
+    private static async Task<IResult> ObtenerPatronEntradaAsync(string? planta, string? fecha, CoraRepository repository)
     {
+        var plantaNormalizada = NormalizarPlanta(planta) ?? "cafetal";
         var fechaObjetivo = DateOnly.TryParse(fecha, out var parsed)
             ? parsed
             : DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
 
-        var patron = await repository.ObtenerPatronEntradaAsync(fechaObjetivo);
+        var patron = await repository.ObtenerPatronEntradaAsync(plantaNormalizada, fechaObjetivo);
         return Results.Ok(patron);
     }
 
-    private static async Task<IResult> SincronizarCoraAsync(CoraClient client, CoraRepository repository)
+    private static async Task<IResult> SincronizarCoraAsync(
+        string? planta,
+        CoraClient client,
+        CoraRepository repository,
+        IReadOnlyList<CoraOptions> opcionesCora)
     {
-        var datos = await client.ObtenerDatosAsync();
+        var plantaNormalizada = NormalizarPlanta(planta) ?? "cafetal";
+        var opciones = opcionesCora.FirstOrDefault(opcion => opcion.Planta == plantaNormalizada);
+        if (opciones is null)
+        {
+            return Results.NotFound(new { error = $"No existe URL CORA configurada para {plantaNormalizada}." });
+        }
+
+        var datos = await client.ObtenerDatosAsync(opciones);
         var guardados = await repository.GuardarDatosAsync(datos);
-        return Results.Ok(new { recibidos = datos.Count, guardados });
+        return Results.Ok(new { planta = plantaNormalizada, recibidos = datos.Count, guardados });
     }
 
-    private static async Task<IResult> ObtenerClimaAsync(WeatherClient client)
+    private static async Task<IResult> ObtenerClimaAsync(string? planta, WeatherClient client)
     {
-        var clima = await client.ObtenerClimaAsync();
+        var clima = await client.ObtenerClimaAsync(NormalizarPlanta(planta) ?? "cafetal");
         return Results.Json(clima);
     }
 

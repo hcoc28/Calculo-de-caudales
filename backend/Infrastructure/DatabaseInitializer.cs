@@ -18,6 +18,7 @@ internal sealed class DatabaseInitializer
         const string sql = """
             CREATE TABLE IF NOT EXISTS datos_cora (
               id BIGSERIAL PRIMARY KEY,
+              planta TEXT NOT NULL DEFAULT 'cafetal',
               fecha DATE NOT NULL,
               hora TIME NOT NULL,
               nivel NUMERIC(10, 2),
@@ -29,11 +30,20 @@ internal sealed class DatabaseInitializer
               datos_originales JSONB,
               creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
               actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              CONSTRAINT datos_cora_fecha_hora_unique UNIQUE (fecha, hora)
+              CONSTRAINT datos_cora_planta_fecha_hora_unique UNIQUE (planta, fecha, hora)
             );
 
+            ALTER TABLE datos_cora
+            ADD COLUMN IF NOT EXISTS planta TEXT NOT NULL DEFAULT 'cafetal';
+
+            ALTER TABLE datos_cora
+            DROP CONSTRAINT IF EXISTS datos_cora_fecha_hora_unique;
+
             CREATE INDEX IF NOT EXISTS idx_datos_cora_fecha_hora
-            ON datos_cora (fecha DESC, hora DESC);
+            ON datos_cora (planta, fecha DESC, hora DESC);
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_datos_cora_planta_fecha_hora_unique
+            ON datos_cora (planta, fecha, hora);
 
             CREATE TABLE IF NOT EXISTS proyecciones (
               id BIGSERIAL PRIMARY KEY,

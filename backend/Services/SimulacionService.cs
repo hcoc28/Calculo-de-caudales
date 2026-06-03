@@ -39,19 +39,31 @@ internal sealed class SimulacionService
 
         if (planta == "la-perla")
         {
-            var alturaCanal = request.AlturaCanal ?? 0.50;
-            var lluviaLaPerla = await ObtenerLluviaOSimulacionSecaAsync();
-            var resultadoLaPerla = SimuladorLaPerla.SimularDia(
+            var fechaPatronLaPerla = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
+            var patronLaPerla = await repository.ObtenerPatronEntradaAsync(planta, fechaPatronLaPerla);
+            if (!patronLaPerla.Completo)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Patron QE incompleto",
+                    patronLaPerla.Fecha,
+                    patronLaPerla.Registros,
+                    patronLaPerla.Completo
+                });
+            }
+
+            var lluviaLaPerla = await ObtenerLluviaOSimulacionSecaAsync(planta);
+            var resultadoLaPerla = SimuladorLaPerla.SimularDiaConPatronCora(
                 request.NivelInicial,
-                alturaCanal,
                 lluviaLaPerla,
+                patronLaPerla,
                 escorrentia,
                 request.PotenciaGeneracion);
             return Results.Ok(await GuardarSiCorrespondeAsync(request, planta, resultadoLaPerla));
         }
 
         var fechaPatron = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
-        var patron = await repository.ObtenerPatronEntradaAsync(fechaPatron);
+        var patron = await repository.ObtenerPatronEntradaAsync(planta, fechaPatron);
         if (!patron.Completo)
         {
             return Results.Conflict(new
@@ -63,7 +75,7 @@ internal sealed class SimulacionService
             });
         }
 
-        var datosLluvia = await ObtenerLluviaOSimulacionSecaAsync();
+        var datosLluvia = await ObtenerLluviaOSimulacionSecaAsync(planta);
         var resultados = SimuladorCaudales.SimularDia(
             request.NivelInicial,
             datosLluvia,
@@ -122,11 +134,11 @@ internal sealed class SimulacionService
             : "cafetal";
     }
 
-    private async Task<double[]> ObtenerLluviaOSimulacionSecaAsync()
+    private async Task<double[]> ObtenerLluviaOSimulacionSecaAsync(string planta)
     {
         try
         {
-            var clima = await weatherClient.ObtenerClimaAsync();
+            var clima = await weatherClient.ObtenerClimaAsync(planta);
             return WeatherClient.ExtraerLluvia(clima);
         }
         catch (Exception ex)

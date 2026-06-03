@@ -15,7 +15,7 @@ import {
   extraerClimaDiario,
   extraerClimaHorario,
   extraerDatosLluvia
-} from './api.js?v=20260603-edicion-potencia';
+} from './api.js?v=20260603-laperla-cora';
 import {
   obtenerEntradasFormulario,
   validarEntradas,
@@ -32,8 +32,8 @@ import {
   actualizarListaProyecciones,
   aplicarVista,
   aplicarPlanta
-} from './ui.js?v=20260603-edicion-potencia';
-import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260603-edicion-potencia';
+} from './ui.js?v=20260603-laperla-cora';
+import { HORAS_OBLIGATORIAS, PLANTAS } from './config.js?v=20260603-laperla-cora';
 
 let patronEntradaReal = null;
 let fechaPatronEntrada = null;
@@ -53,7 +53,7 @@ function patronEntradaCompleto(patron) {
 }
 
 async function actualizarPatronEntrada() {
-  const respuesta = await obtenerPatronEntradaEmbalse();
+  const respuesta = await obtenerPatronEntradaEmbalse(plantaActual);
   const patron = Array.isArray(respuesta.patron) ? respuesta.patron : [];
   patronEntradaReal = patron.map(valor => Number(valor));
   fechaPatronEntrada = respuesta.fecha;
@@ -77,7 +77,7 @@ async function actualizarPanelEmbalse() {
 
   try {
     establecerEstadoEmbalse("Actualizando...");
-    const datosEmbalse = await obtenerDatosEmbalse();
+    const datosEmbalse = await obtenerDatosEmbalse(plantaActual);
     actualizarDatosEmbalse(datosEmbalse);
 
     try {
@@ -101,7 +101,7 @@ async function actualizarTodo() {
 
   try {
     establecerEstadoClima("Clima: actualizando automáticamente...");
-    const datosClima = await obtenerDatosClima();
+    const datosClima = await obtenerDatosClima(plantaActual);
     await renderizarDesdeDatosClima(datosClima);
   } catch (error) {
     console.error('Error en actualización automática:', error);
@@ -168,7 +168,7 @@ async function manejarCalculoManual() {
     establecerEstadoClima("Clima: obteniendo datos reales...");
 
     await actualizarPanelEmbalse();
-    const datosClima = await obtenerDatosClima();
+    const datosClima = await obtenerDatosClima(plantaActual);
     await renderizarDesdeDatosClima(datosClima);
     const { nivelInicial, alturaCanal } = obtenerEntradasFormulario();
     const simulacionGuardada = await obtenerSimulacion(plantaActual, nivelInicial, alturaCanal, null, true);

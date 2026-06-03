@@ -3,7 +3,7 @@
  * Maneja todas las actualizaciones del DOM y eventos
  */
 
-import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260603-edicion-potencia';
+import { CODIGOS_CLIMA, ICONOS_CLIMA, PLANTAS } from './config.js?v=20260603-laperla-cora';
 
 // ============================================
 // ESTADO GLOBAL

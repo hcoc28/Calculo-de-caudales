@@ -8,15 +8,13 @@ namespace CaudalesBackend.Clients;
 internal sealed class CoraClient
 {
     private readonly HttpClient httpClient;
-    private readonly CoraOptions options;
 
-    public CoraClient(HttpClient httpClient, CoraOptions options)
+    public CoraClient(HttpClient httpClient)
     {
         this.httpClient = httpClient;
-        this.options = options;
     }
 
-    public async Task<List<DatoCora>> ObtenerDatosAsync()
+    public async Task<List<DatoCora>> ObtenerDatosAsync(CoraOptions options)
     {
         var url = new UriBuilder(options.ApiUrl);
         var separator = string.IsNullOrWhiteSpace(url.Query) ? "" : "&";
@@ -26,7 +24,7 @@ internal sealed class CoraClient
         var root = JsonNode.Parse(json);
 
         return NormalizarLista(root)
-            .Select(NormalizarRegistro)
+            .Select(registro => NormalizarRegistro(options.Planta, registro))
             .Where(dato => dato is not null)
             .Cast<DatoCora>()
             .ToList();
@@ -41,12 +39,13 @@ internal sealed class CoraClient
         return root is null ? [] : [root];
     }
 
-    private static DatoCora? NormalizarRegistro(JsonNode registro)
+    private static DatoCora? NormalizarRegistro(string planta, JsonNode registro)
     {
         var (fecha, hora) = SepararFechaHora(registro);
         if (fecha is null || hora is null) return null;
 
         return new DatoCora(
+            planta,
             fecha.Value,
             hora.Value,
             BuscarDecimal(registro, ["nivel", "embalse"]),

@@ -11,6 +11,8 @@ services:
         sync: false
       - key: CORA_API_URL
         sync: false
+      - key: CORA_API_URL_LA_PERLA
+        sync: false
       - key: CORA_API_CANTIDAD
         value: 72
       - key: CORA_SYNC_MINUTES
@@ -21,3 +23,7 @@ services:
         value: 0.65
       - key: ESCORRENTIA_AREA_M2
         sync: false
+      - key: LA_PERLA_LATITUD
+        value: 15.3000
+      - key: LA_PERLA_LONGITUD
+        value: -90.0700

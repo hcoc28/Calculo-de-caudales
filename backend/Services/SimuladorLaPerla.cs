@@ -86,6 +86,67 @@ internal static class SimuladorLaPerla
         return new SimulacionResponse(resultados, resumen);
     }
 
+    public static SimulacionResponse SimularDiaConPatronCora(
+        double nivelInicial,
+        double[] datosLluvia,
+        PatronEntradaDto patron,
+        EscorrentiaOptions escorrentia,
+        double? potenciaGeneracionMw)
+    {
+        var volumenInicial = NivelAVolumen(nivelInicial);
+        var areaEscorrentia = ObtenerAreaEscorrentia(nivelInicial, escorrentia);
+        var potenciaUnidad = ObtenerPotenciaGeneracion(potenciaGeneracionMw);
+
+        var volumenAcumulado = volumenInicial;
+        var resultados = new List<ResultadoHorarioDto>();
+
+        for (var h = 0; h < HorasSimulacion; h++)
+        {
+            var entradaReal = patron.Patron[h];
+            if (!entradaReal.HasValue)
+            {
+                throw new InvalidOperationException($"Falta QE en base de datos para la hora operativa {h + 1}.");
+            }
+
+            var lluvia = h >= 2 ? datosLluvia[h - 2] : 0;
+            var caudalEntrada = Redondear2((double)entradaReal.Value + CalcularCaudalEscorrentiaPorLluvia(lluvia, nivelInicial, escorrentia));
+            var potencia = ElegirPotencia(volumenAcumulado, caudalEntrada, potenciaUnidad);
+            var escenario = EvaluarEscenario(volumenAcumulado, caudalEntrada, potencia);
+
+            volumenAcumulado = escenario.VolumenFinal;
+            resultados.Add(new ResultadoHorarioDto(
+                h,
+                (h + 1) % 24,
+                escenario.PotenciaGenerada,
+                escenario.Salida,
+                escenario.VolumenTurbinado,
+                caudalEntrada,
+                escenario.VolumenPorHora,
+                escenario.Diferencia,
+                escenario.VolumenFinal,
+                escenario.NivelFinal,
+                escenario.PotenciaGenerada > 0 ? "Encendida" : "Apagada"));
+        }
+
+        var resumen = new ResumenSimulacionDto(
+            nivelInicial,
+            volumenInicial,
+            resultados[^1].Nivel,
+            resultados[^1].Acumulado,
+            resultados.Min(r => r.Nivel),
+            resultados.Max(r => r.Nivel),
+            potenciaUnidad,
+            resultados.Count(r => r.Potencia > 0),
+            true,
+            patron.Fecha,
+            patron.Registros,
+            patron.Completo,
+            escorrentia.Coeficiente,
+            areaEscorrentia);
+
+        return new SimulacionResponse(resultados, resumen);
+    }
+
     public static SimulacionResponse RecalcularConPotencias(ProyeccionDetalleDto proyeccion, double[] potencias)
     {
         var resultadosOriginales = proyeccion.Resultados;

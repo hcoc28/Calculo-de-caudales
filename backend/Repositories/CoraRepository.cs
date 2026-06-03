@@ -24,11 +24,12 @@ internal sealed class CoraRepository
         return guardados;
     }
 
-    public async Task<List<DatoCoraDto>> ListarDatosAsync(int limite)
+    public async Task<List<DatoCoraDto>> ListarDatosAsync(string planta, int limite)
     {
         const string sql = """
             SELECT
               id,
+              planta,
               fecha,
               hora,
               nivel,
@@ -41,11 +42,13 @@ internal sealed class CoraRepository
               creado_en,
               actualizado_en
             FROM datos_cora
+            WHERE planta = $1
             ORDER BY fecha DESC, hora DESC
-            LIMIT $1
+            LIMIT $2
             """;
 
         await using var command = db.CreateCommand(sql);
+        command.Parameters.AddWithValue(planta);
         command.Parameters.AddWithValue(limite);
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -54,28 +57,30 @@ internal sealed class CoraRepository
         {
             datos.Add(new DatoCoraDto(
                 reader.GetInt64(0),
-                reader.GetFieldValue<DateOnly>(1),
-                reader.GetFieldValue<TimeOnly>(2),
-                ReadNullableDecimal(reader, 3),
+                reader.GetString(1),
+                reader.GetFieldValue<DateOnly>(2),
+                reader.GetFieldValue<TimeOnly>(3),
                 ReadNullableDecimal(reader, 4),
                 ReadNullableDecimal(reader, 5),
                 ReadNullableDecimal(reader, 6),
                 ReadNullableDecimal(reader, 7),
-                reader.IsDBNull(8) ? null : reader.GetString(8),
-                reader.GetString(9),
-                reader.GetDateTime(10),
-                reader.GetDateTime(11)));
+                ReadNullableDecimal(reader, 8),
+                reader.IsDBNull(9) ? null : reader.GetString(9),
+                reader.GetString(10),
+                reader.GetDateTime(11),
+                reader.GetDateTime(12)));
         }
 
         return datos;
     }
 
-    public async Task<PatronEntradaDto> ObtenerPatronEntradaAsync(DateOnly fecha)
+    public async Task<PatronEntradaDto> ObtenerPatronEntradaAsync(string planta, DateOnly fecha)
     {
         const string sql = """
             SELECT (EXTRACT(HOUR FROM hora)::int + 1) AS hora_operativa, qe
             FROM datos_cora
-            WHERE fecha = $1
+            WHERE planta = $1
+              AND fecha = $2
               AND qe IS NOT NULL
             ORDER BY hora_operativa ASC
             """;
@@ -84,6 +89,7 @@ internal sealed class CoraRepository
         var registros = 0;
 
         await using var command = db.CreateCommand(sql);
+        command.Parameters.AddWithValue(planta);
         command.Parameters.AddWithValue(fecha);
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -105,10 +111,10 @@ internal sealed class CoraRepository
     {
         const string sql = """
             INSERT INTO datos_cora (
-              fecha, hora, nivel, qe, qs, qv, potencia_activa, clima, datos_originales
+              planta, fecha, hora, nivel, qe, qs, qv, potencia_activa, clima, datos_originales
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-            ON CONFLICT (fecha, hora)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+            ON CONFLICT (planta, fecha, hora)
             DO UPDATE SET
               nivel = EXCLUDED.nivel,
               qe = EXCLUDED.qe,
@@ -121,6 +127,7 @@ internal sealed class CoraRepository
             """;
 
         await using var command = db.CreateCommand(sql);
+        command.Parameters.AddWithValue(dato.Planta);
         command.Parameters.AddWithValue(dato.Fecha);
         command.Parameters.AddWithValue(dato.Hora);
         command.Parameters.AddWithValue((object?)dato.Nivel ?? DBNull.Value);

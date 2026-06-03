@@ -8,17 +8,20 @@ internal sealed class CoraSyncService : BackgroundService
 {
     private readonly CoraClient client;
     private readonly CoraRepository repository;
+    private readonly IReadOnlyList<CoraOptions> plantasCora;
     private readonly SyncOptions options;
     private readonly ILogger<CoraSyncService> logger;
 
     public CoraSyncService(
         CoraClient client,
         CoraRepository repository,
+        IReadOnlyList<CoraOptions> plantasCora,
         SyncOptions options,
         ILogger<CoraSyncService> logger)
     {
         this.client = client;
         this.repository = repository;
+        this.plantasCora = plantasCora;
         this.options = options;
         this.logger = logger;
     }
@@ -41,11 +44,17 @@ internal sealed class CoraSyncService : BackgroundService
     {
         try
         {
-            var datos = await client.ObtenerDatosAsync();
-            stoppingToken.ThrowIfCancellationRequested();
+            foreach (var planta in plantasCora)
+            {
+                var datos = await client.ObtenerDatosAsync(planta);
+                stoppingToken.ThrowIfCancellationRequested();
 
-            var guardados = await repository.GuardarDatosAsync(datos);
-            logger.LogInformation("[CORA] Sincronizacion completada: {Guardados} registros.", guardados);
+                var guardados = await repository.GuardarDatosAsync(datos);
+                logger.LogInformation(
+                    "[CORA] Sincronizacion completada para {Planta}: {Guardados} registros.",
+                    planta.Planta,
+                    guardados);
+            }
         }
         catch (OperationCanceledException)
         {

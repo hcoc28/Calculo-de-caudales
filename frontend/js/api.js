@@ -3,7 +3,7 @@
  * Maneja las llamadas al backend C#.
  */
 
-import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260603-edicion-potencia';
+import { API, HORAS_OBLIGATORIAS } from './config.js?v=20260603-laperla-cora';
 
 async function obtenerConTiempoLimite(url, tiempoEspera = 10000, opciones = {}) {
   const controlador = new AbortController();
@@ -26,11 +26,12 @@ async function leerJsonSeguro(respuesta) {
  * Obtiene datos de clima actual y pronóstico desde Open-Meteo
  * @returns {Promise<Object>} Datos de clima
  */
-export async function obtenerDatosClima() {
+export async function obtenerDatosClima(planta = "cafetal") {
   const { urlBase, tiempoEspera } = API.clima;
+  const parametros = new URLSearchParams({ planta });
 
   try {
-    const respuesta = await obtenerConTiempoLimite(urlBase, tiempoEspera);
+    const respuesta = await obtenerConTiempoLimite(`${urlBase}?${parametros}`, tiempoEspera);
     if (!respuesta.ok) {
       throw new Error(`Error de backend de clima: ${respuesta.status}`);
     }
@@ -77,9 +78,10 @@ export async function obtenerSimulacion(
  * Obtiene los últimos datos reales de producción y embalse desde PostgreSQL.
  * @returns {Promise<Array|Object>} Datos CORA almacenados por el backend
  */
-export async function obtenerDatosEmbalse() {
+export async function obtenerDatosEmbalse(planta = "cafetal") {
   const { urlBackend, cantidadUltimos, tiempoEspera } = API.embalse;
   const parametros = new URLSearchParams({
+    planta,
     cantidad: String(cantidadUltimos)
   });
   const urlBackendConParametros = `${urlBackend}?${parametros}`;
@@ -101,9 +103,10 @@ export async function obtenerDatosEmbalse() {
  * Si no se envía fecha, el backend usa el día anterior.
  * @returns {Promise<Object>} { fecha, patron, registros, completo }
  */
-export async function obtenerPatronEntradaEmbalse(fecha = null) {
+export async function obtenerPatronEntradaEmbalse(planta = "cafetal", fecha = null) {
   const { urlPatronEntrada, tiempoEspera } = API.embalse;
   const parametros = new URLSearchParams();
+  parametros.set("planta", planta);
   if (fecha) parametros.set('fecha', fecha);
 
   const url = parametros.toString()

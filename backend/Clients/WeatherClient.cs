@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using CaudalesBackend.Infrastructure;
+using CaudalesBackend.Models;
 using CaudalesBackend.Services;
 
 namespace CaudalesBackend.Clients;
@@ -7,18 +8,23 @@ namespace CaudalesBackend.Clients;
 internal sealed class WeatherClient
 {
     private readonly HttpClient httpClient;
+    private readonly IReadOnlyList<PlantWeatherOptions> plantas;
 
-    public WeatherClient(HttpClient httpClient)
+    public WeatherClient(HttpClient httpClient, IReadOnlyList<PlantWeatherOptions> plantas)
     {
         this.httpClient = httpClient;
+        this.plantas = plantas;
     }
 
-    public async Task<JsonNode> ObtenerClimaAsync()
+    public async Task<JsonNode> ObtenerClimaAsync(string planta = "cafetal")
     {
+        var ubicacion = plantas.FirstOrDefault(item => item.Planta == planta)
+            ?? plantas.First(item => item.Planta == "cafetal");
+
         var parametros = new Dictionary<string, string>
         {
-            ["latitude"] = "15.14375",
-            ["longitude"] = "-90.07007",
+            ["latitude"] = ubicacion.Latitud.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["longitude"] = ubicacion.Longitud.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["timezone"] = "auto",
             ["current"] = "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m",
             ["hourly"] = "temperature_2m,precipitation,weather_code,is_day",
