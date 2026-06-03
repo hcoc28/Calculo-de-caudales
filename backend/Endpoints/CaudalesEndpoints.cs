@@ -10,6 +10,7 @@ internal static class CaudalesEndpoints
 {
     public static WebApplication MapCaudalesApi(this WebApplication app)
     {
+        app.MapGet("/api/estado", ObtenerEstado);
         app.MapGet("/api/salud", ObtenerSaludAsync);
         app.MapGet("/api/cora/datos", ObtenerDatosCoraAsync);
         app.MapGet("/api/cora/patron-entrada", ObtenerPatronEntradaAsync);
@@ -21,6 +22,16 @@ internal static class CaudalesEndpoints
         app.MapPatch("/api/proyecciones/{id:long}/potencias", ActualizarPotenciasAsync);
 
         return app;
+    }
+
+    private static IResult ObtenerEstado()
+    {
+        return Results.Ok(new
+        {
+            ok = true,
+            servicio = "calculo-caudales",
+            fecha = DateTimeOffset.UtcNow
+        });
     }
 
     private static async Task<IResult> ObtenerSaludAsync(NpgsqlDataSource db)

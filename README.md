@@ -7,9 +7,11 @@ Sistema para consultar datos horarios de CORA, guardarlos en PostgreSQL y simula
 - Consulta la API CORA desde ASP.NET Core.
 - Guarda en PostgreSQL: fecha, hora, nivel, QE, QS, QV, potencia activa, clima y JSON original.
 - Sincroniza CORA automaticamente aunque la pagina web no este abierta.
-- Usa el QE del dia anterior, de 00:00 a 23:00, como patron de entrada para la proyeccion del dia siguiente.
+- Usa el QE del dia anterior como patron operativo de 24 horas para la proyeccion del dia siguiente.
 - Consulta clima desde el backend.
 - Permite navegar entre dos plantas: El Cafetal y La Perla.
+- Guarda proyecciones realizadas y permite consultarlas por planta.
+- Permite editar la potencia de una proyeccion guardada con doble click sobre la celda de potencia.
 - Para La Perla usa el metodo del documento de Hidrosacpur: Manning para caudal de entrada, tabla volumen/nivel 595-600 msnm y caudal turbinado por potencia/eficiencia.
 - Suma la lluvia directamente al caudal de entrada usando escorrentia:
 
@@ -99,6 +101,23 @@ ESCORRENTIA_AREA_M2
 
 El backend escucha en `0.0.0.0` usando la variable `PORT`, que es lo que Render necesita para enrutar trafico publico.
 
+## Azure
+
+Para uso serio en produccion se recomienda:
+
+```text
+Azure App Service for Containers
+Azure Database for PostgreSQL Flexible Server
+Application Insights
+Azure Monitor
+```
+
+La guia completa esta en:
+
+```text
+AZURE_DEPLOYMENT.md
+```
+
 ## Base de datos
 
 La base se llama normalmente:
@@ -113,7 +132,13 @@ La tabla principal es:
 datos_cora
 ```
 
-El backend evita duplicados con una regla unica por `fecha + hora`. Si CORA manda de nuevo una hora ya existente, el registro se actualiza.
+Tambien existe:
+
+```text
+proyecciones
+```
+
+El backend evita duplicados en CORA con una regla unica por `fecha + hora`. Si CORA manda de nuevo una hora ya existente, el registro se actualiza.
 
 ## Configuracion
 
@@ -138,11 +163,15 @@ ESCORRENTIA_AREA_M2=
 
 ```text
 GET  /api/salud
+GET  /api/estado
 GET  /api/cora/datos?cantidad=72
 GET  /api/cora/patron-entrada
 POST /api/cora/sincronizar
 GET  /api/clima
 POST /api/simulacion
+GET  /api/proyecciones?planta=cafetal
+GET  /api/proyecciones/{id}
+PATCH /api/proyecciones/{id}/potencias
 ```
 
 ## Archivos clave
