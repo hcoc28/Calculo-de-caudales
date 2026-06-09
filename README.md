@@ -106,23 +106,6 @@ LA_PERLA_LONGITUD=-90.069444
 
 El backend escucha en `0.0.0.0` usando la variable `PORT`, que es lo que Render necesita para enrutar trafico publico.
 
-## Azure
-
-Para uso serio en produccion se recomienda:
-
-```text
-Azure App Service for Containers
-Azure Database for PostgreSQL Flexible Server
-Application Insights
-Azure Monitor
-```
-
-La guia completa esta en:
-
-```text
-AZURE_DEPLOYMENT.md
-```
-
 ## Base de datos
 
 La base se llama normalmente:
