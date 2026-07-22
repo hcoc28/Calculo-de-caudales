@@ -74,5 +74,13 @@ internal sealed class DatabaseInitializer
         {
             logger.LogError(ex, "[DB] El usuario de PostgreSQL no tiene permiso para crear tablas en el esquema public.");
         }
+        catch (Exception ex)
+        {
+            // No se pudo conectar (DATABASE_URL invalida, DNS, base caida, etc.). No abortamos el
+            // arranque: es preferible que el servicio quede en pie sirviendo /api/salud y el
+            // frontend, aunque las funciones que dependen de la base fallen, a que Render marque
+            // el deploy entero como caido.
+            logger.LogError(ex, "[DB] No se pudo conectar a PostgreSQL para verificar/crear las tablas.");
+        }
     }
 }
