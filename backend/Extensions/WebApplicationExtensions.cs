@@ -1,7 +1,52 @@
+using System.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics;
+
 namespace CaudalesBackend.Extensions;
 
 internal static class WebApplicationExtensions
 {
+    public static WebApplication UseManejoErrores(this WebApplication app)
+    {
+        app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                var feature = context.Features.Get<IExceptionHandlerFeature>();
+                if (feature?.Error is { } error)
+                {
+                    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Errores");
+                    logger.LogError(error, "[HTTP] Error no controlado en {Ruta}", feature.Path);
+                }
+
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { error = "Ocurrio un error interno." });
+            });
+        });
+
+        return app;
+    }
+
+    public static WebApplication UseRegistroSolicitudes(this WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            var inicio = Stopwatch.GetTimestamp();
+            await next();
+            var duracionMs = Stopwatch.GetElapsedTime(inicio).TotalMilliseconds;
+
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Solicitudes");
+            logger.LogInformation(
+                "{Metodo} {Ruta} -> {Estado} ({DuracionMs} ms)",
+                context.Request.Method,
+                context.Request.Path,
+                context.Response.StatusCode,
+                Math.Round(duracionMs, 1));
+        });
+
+        return app;
+    }
+
     public static WebApplication UseApiNoCacheHeaders(this WebApplication app)
     {
         app.Use(async (context, next) =>

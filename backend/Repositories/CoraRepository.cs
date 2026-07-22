@@ -6,10 +6,12 @@ namespace CaudalesBackend.Repositories;
 internal sealed class CoraRepository
 {
     private readonly NpgsqlDataSource db;
+    private readonly ILogger<CoraRepository> logger;
 
-    public CoraRepository(NpgsqlDataSource db)
+    public CoraRepository(NpgsqlDataSource db, ILogger<CoraRepository> logger)
     {
         this.db = db;
+        this.logger = logger;
     }
 
     public async Task<int> GuardarDatosAsync(IEnumerable<DatoCora> datos)
@@ -17,7 +19,7 @@ internal sealed class CoraRepository
         var guardados = 0;
         foreach (var dato in datos)
         {
-            await GuardarDatoAsync(dato);
+            await GuardarDatoAsync(DatoCoraValidador.Sanear(dato, logger));
             guardados++;
         }
 
@@ -105,6 +107,37 @@ internal sealed class CoraRepository
         }
 
         return new PatronEntradaDto(fecha, patron, registros, patron.All(valor => valor.HasValue));
+    }
+
+    public async Task<LecturaHorariaDto?[]> ObtenerLecturasPorFechaAsync(string planta, DateOnly fecha)
+    {
+        const string sql = """
+            SELECT (EXTRACT(HOUR FROM hora)::int + 1) AS hora_operativa, nivel, qs
+            FROM datos_cora
+            WHERE planta = $1
+              AND fecha = $2
+            ORDER BY hora_operativa ASC
+            """;
+
+        var lecturas = new LecturaHorariaDto?[24];
+
+        await using var command = db.CreateCommand(sql);
+        command.Parameters.AddWithValue(planta);
+        command.Parameters.AddWithValue(fecha);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            var horaOperativa = reader.GetInt32(0);
+            var indice = horaOperativa - 1;
+            if (indice is < 0 or >= 24) continue;
+
+            lecturas[indice] = new LecturaHorariaDto(
+                reader.IsDBNull(1) ? null : (double)reader.GetDecimal(1),
+                reader.IsDBNull(2) ? null : (double)reader.GetDecimal(2));
+        }
+
+        return lecturas;
     }
 
     private async Task GuardarDatoAsync(DatoCora dato)

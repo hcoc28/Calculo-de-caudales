@@ -22,6 +22,51 @@ async function leerJsonSeguro(respuesta) {
   return JSON.parse(texto);
 }
 
+// ============================================
+// API KEY (endpoints de escritura protegidos)
+// ============================================
+const CLAVE_ALMACENAMIENTO_API_KEY = "caudales_api_key";
+
+function obtenerApiKeyGuardada() {
+  try {
+    return localStorage.getItem(CLAVE_ALMACENAMIENTO_API_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function guardarApiKey(valor) {
+  try {
+    if (valor) {
+      localStorage.setItem(CLAVE_ALMACENAMIENTO_API_KEY, valor);
+    } else {
+      localStorage.removeItem(CLAVE_ALMACENAMIENTO_API_KEY);
+    }
+  } catch {
+    // localStorage no disponible (modo privado, cuotas, etc.); no es critico.
+  }
+}
+
+function encabezadosConApiKey(encabezadosBase = {}) {
+  const apiKey = obtenerApiKeyGuardada();
+  return apiKey ? { ...encabezadosBase, "X-Api-Key": apiKey } : encabezadosBase;
+}
+
+/**
+ * Ejecuta una llamada protegida por API key. Si el backend responde 401
+ * (falta o es incorrecta), pide la clave una vez, la guarda y reintenta.
+ */
+async function conReintentoDeApiKey(ejecutar) {
+  let respuesta = await ejecutar();
+  if (respuesta.status !== 401) return respuesta;
+
+  const apiKey = window.prompt("Esta accion requiere la clave de operador (API key):");
+  if (!apiKey) return respuesta;
+
+  guardarApiKey(apiKey);
+  return ejecutar();
+}
+
 /**
  * Obtiene datos de clima actual y pronóstico desde Open-Meteo
  * @returns {Promise<Object>} Datos de clima
@@ -56,11 +101,11 @@ export async function obtenerSimulacion(
   const { urlSimulacion, tiempoEspera } = API.embalse;
 
   try {
-    const respuesta = await obtenerConTiempoLimite(urlSimulacion, tiempoEspera, {
+    const respuesta = await conReintentoDeApiKey(() => obtenerConTiempoLimite(urlSimulacion, tiempoEspera, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: encabezadosConApiKey({ "Content-Type": "application/json" }),
       body: JSON.stringify({ planta, nivelInicial, alturaCanal, potenciaGeneracion, guardar })
-    });
+    }));
     const datos = await leerJsonSeguro(respuesta);
 
     if (!respuesta.ok) {
@@ -152,11 +197,11 @@ export async function obtenerProyeccion(id) {
 
 export async function actualizarPotenciasProyeccion(id, potencias) {
   const { urlProyecciones, tiempoEspera } = API.embalse;
-  const respuesta = await obtenerConTiempoLimite(`${urlProyecciones}/${id}/potencias`, tiempoEspera, {
+  const respuesta = await conReintentoDeApiKey(() => obtenerConTiempoLimite(`${urlProyecciones}/${id}/potencias`, tiempoEspera, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: encabezadosConApiKey({ "Content-Type": "application/json" }),
     body: JSON.stringify({ potencias })
-  });
+  }));
   const datos = await leerJsonSeguro(respuesta);
 
   if (!respuesta.ok) {

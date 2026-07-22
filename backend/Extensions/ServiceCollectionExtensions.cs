@@ -17,7 +17,8 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton(settings.Cora);
         services.AddSingleton(settings.Clima);
         services.AddSingleton(settings.Sync);
-        services.AddSingleton(settings.Escorrentia);
+        services.AddSingleton(settings.EscorrentiaPorPlanta);
+        services.AddSingleton(new ApiKeyOptions(settings.ApiKey));
         services.AddSingleton<DatabaseInitializer>();
 
         services.AddHttpClient<CoraClient>()

@@ -1,4 +1,5 @@
 using CaudalesBackend.Clients;
+using CaudalesBackend.Infrastructure;
 using CaudalesBackend.Models;
 using CaudalesBackend.Repositories;
 using CaudalesBackend.Services;
@@ -14,12 +15,22 @@ internal static class CaudalesEndpoints
         app.MapGet("/api/salud", ObtenerSaludAsync);
         app.MapGet("/api/cora/datos", ObtenerDatosCoraAsync);
         app.MapGet("/api/cora/patron-entrada", ObtenerPatronEntradaAsync);
-        app.MapPost("/api/cora/sincronizar", SincronizarCoraAsync);
+        app.MapPost("/api/cora/sincronizar", SincronizarCoraAsync).AddEndpointFilter<ApiKeyEndpointFilter>();
         app.MapGet("/api/clima", ObtenerClimaAsync);
-        app.MapPost("/api/simulacion", SimularAsync);
+        // Solo exige API key cuando la simulacion se va a guardar (persistir); la vista previa
+        // (Guardar=false), usada por la actualizacion automatica del frontend, queda abierta.
+        app.MapPost("/api/simulacion", SimularAsync).AddEndpointFilter(async (context, next) =>
+        {
+            var request = context.GetArgument<SimulacionRequest>(0);
+            if (!request.Guardar) return await next(context);
+
+            var resultado = ApiKeyVerificador.Verificar(context.HttpContext);
+            return resultado ?? await next(context);
+        });
         app.MapGet("/api/proyecciones", ListarProyeccionesAsync);
         app.MapGet("/api/proyecciones/{id:long}", ObtenerProyeccionAsync);
-        app.MapPatch("/api/proyecciones/{id:long}/potencias", ActualizarPotenciasAsync);
+        app.MapPatch("/api/proyecciones/{id:long}/potencias", ActualizarPotenciasAsync).AddEndpointFilter<ApiKeyEndpointFilter>();
+        app.MapGet("/api/proyecciones/{id:long}/comparacion", CompararProyeccionAsync);
 
         return app;
     }
@@ -108,6 +119,11 @@ internal static class CaudalesEndpoints
         SimulacionService service)
     {
         return await service.ActualizarPotenciasAsync(id, request);
+    }
+
+    private static async Task<IResult> CompararProyeccionAsync(long id, SimulacionService service)
+    {
+        return await service.CompararAsync(id);
     }
 
     private static string? NormalizarPlanta(string? planta)

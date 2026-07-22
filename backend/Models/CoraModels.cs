@@ -8,6 +8,8 @@ internal sealed record PlantWeatherOptions(string Planta, string Nombre, double 
 
 internal sealed record SyncOptions(TimeSpan Intervalo, bool SincronizarAlArrancar);
 
+internal sealed record LecturaHorariaDto(double? Nivel, double? CaudalSalida);
+
 internal sealed record DatoCora(
     string Planta,
     DateOnly Fecha,

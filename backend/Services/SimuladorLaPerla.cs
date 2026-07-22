@@ -239,7 +239,7 @@ internal static class SimuladorLaPerla
         if (!double.IsFinite(lluviaMm) || lluviaMm <= 0) return 0;
 
         var area = ObtenerAreaEscorrentia(nivelReferencia, escorrentia);
-        return Redondear2(escorrentia.Coeficiente * lluviaMm * area / 1000 / 3600);
+        return Redondear2(EscorrentiaCalculos.CalcularEscorrentiaCurvaNumero(lluviaMm, escorrentia.CurvaNumero) * escorrentia.Coeficiente * area / 1000 / 3600);
     }
 
     private static double ObtenerAreaEscorrentia(double nivelReferencia, EscorrentiaOptions escorrentia)

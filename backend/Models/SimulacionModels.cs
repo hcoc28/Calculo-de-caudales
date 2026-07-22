@@ -41,7 +41,7 @@ internal sealed record SimulacionResponse(
     ResumenSimulacionDto Resumen,
     long? ProyeccionId = null);
 
-internal sealed record EscorrentiaOptions(double Coeficiente, double? AreaAporteM2);
+internal sealed record EscorrentiaOptions(double Coeficiente, double? AreaAporteM2, double CurvaNumero);
 
 internal sealed record AjustePotenciasRequest(double[] Potencias);
 
@@ -66,3 +66,17 @@ internal sealed record ProyeccionDetalleDto(
     DateOnly? FechaPatron,
     List<ResultadoHorarioDto> Resultados,
     ResumenSimulacionDto Resumen);
+
+internal sealed record ComparacionHorariaDto(
+    int De,
+    int A,
+    double CaudalProyectado,
+    double? CaudalReal,
+    double NivelProyectado,
+    double? NivelReal);
+
+internal sealed record ComparacionProyeccionDto(
+    long ProyeccionId,
+    string Planta,
+    DateOnly Fecha,
+    List<ComparacionHorariaDto> Horas);

@@ -10,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+if (Enum.TryParse<LogLevel>(AppConfig.GetOptional("LOG_LEVEL"), ignoreCase: true, out var nivelLog))
+{
+    builder.Logging.SetMinimumLevel(nivelLog);
+}
 
 var settings = AppSettings.FromEnvironment();
 
@@ -20,6 +24,8 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
 
+app.UseManejoErrores();
+app.UseRegistroSolicitudes();
 app.UseApiNoCacheHeaders();
 app.MapCaudalesApi();
 app.UseFrontendFiles();

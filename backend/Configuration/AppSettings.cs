@@ -8,7 +8,8 @@ internal sealed record AppSettings(
     IReadOnlyList<CoraOptions> Cora,
     IReadOnlyList<PlantWeatherOptions> Clima,
     SyncOptions Sync,
-    EscorrentiaOptions Escorrentia)
+    IReadOnlyDictionary<string, EscorrentiaOptions> EscorrentiaPorPlanta,
+    string? ApiKey)
 {
     public static AppSettings FromEnvironment()
     {
@@ -20,9 +21,20 @@ internal sealed record AppSettings(
             new SyncOptions(
                 TimeSpan.FromMinutes(AppConfig.GetInt("CORA_SYNC_MINUTES", 10)),
                 AppConfig.GetBool("CORA_SYNC_ON_START", true)),
-            new EscorrentiaOptions(
-                AppConfig.GetDouble("ESCORRENTIA_COEFICIENTE", 0.65),
-                AppConfig.GetNullableDouble("ESCORRENTIA_AREA_M2")));
+            CrearOpcionesEscorrentia(),
+            AppConfig.GetOptional("API_KEY"));
+    }
+
+    private static IReadOnlyDictionary<string, EscorrentiaOptions> CrearOpcionesEscorrentia()
+    {
+        var coeficiente = AppConfig.GetDouble("ESCORRENTIA_COEFICIENTE", 0.65);
+        var areaM2 = AppConfig.GetNullableDouble("ESCORRENTIA_AREA_M2");
+
+        return new Dictionary<string, EscorrentiaOptions>
+        {
+            ["cafetal"] = new(coeficiente, areaM2, AppConfig.GetDouble("CAFETAL_CURVA_NUMERO", 75)),
+            ["la-perla"] = new(coeficiente, areaM2, AppConfig.GetDouble("LA_PERLA_CURVA_NUMERO", 75))
+        };
     }
 
     private static IReadOnlyList<CoraOptions> CrearOpcionesCora()

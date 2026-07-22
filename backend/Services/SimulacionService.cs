@@ -9,20 +9,20 @@ internal sealed class SimulacionService
     private readonly CoraRepository repository;
     private readonly ProyeccionRepository proyeccionRepository;
     private readonly WeatherClient weatherClient;
-    private readonly EscorrentiaOptions escorrentia;
+    private readonly IReadOnlyDictionary<string, EscorrentiaOptions> escorrentiaPorPlanta;
     private readonly ILogger<SimulacionService> logger;
 
     public SimulacionService(
         CoraRepository repository,
         ProyeccionRepository proyeccionRepository,
         WeatherClient weatherClient,
-        EscorrentiaOptions escorrentia,
+        IReadOnlyDictionary<string, EscorrentiaOptions> escorrentiaPorPlanta,
         ILogger<SimulacionService> logger)
     {
         this.repository = repository;
         this.proyeccionRepository = proyeccionRepository;
         this.weatherClient = weatherClient;
-        this.escorrentia = escorrentia;
+        this.escorrentiaPorPlanta = escorrentiaPorPlanta;
         this.logger = logger;
     }
 
@@ -31,6 +31,7 @@ internal sealed class SimulacionService
         var planta = NormalizarPlanta(request.Planta);
         var limiteInferior = planta == "la-perla" ? 595 : 770;
         var limiteSuperior = planta == "la-perla" ? 600 : 778;
+        var escorrentia = escorrentiaPorPlanta[planta];
 
         if (request.NivelInicial < limiteInferior || request.NivelInicial > limiteSuperior)
         {
@@ -125,6 +126,32 @@ internal sealed class SimulacionService
             request.PotenciaGeneracion,
             simulacion);
         return simulacion with { ProyeccionId = id };
+    }
+
+    public async Task<IResult> CompararAsync(long proyeccionId)
+    {
+        var proyeccion = await proyeccionRepository.ObtenerAsync(proyeccionId);
+        if (proyeccion is null)
+        {
+            return Results.NotFound(new { error = "Proyeccion no encontrada." });
+        }
+
+        var fecha = DateOnly.FromDateTime(proyeccion.CreadoEn);
+        var lecturas = await repository.ObtenerLecturasPorFechaAsync(proyeccion.Planta, fecha);
+
+        var horas = proyeccion.Resultados.Select(resultado =>
+        {
+            var lectura = resultado.De is >= 0 and < 24 ? lecturas[resultado.De] : null;
+            return new ComparacionHorariaDto(
+                resultado.De,
+                resultado.A,
+                resultado.CaudalSalida,
+                lectura?.CaudalSalida,
+                resultado.Nivel,
+                lectura?.Nivel);
+        }).ToList();
+
+        return Results.Ok(new ComparacionProyeccionDto(proyeccion.Id, proyeccion.Planta, fecha, horas));
     }
 
     private static string NormalizarPlanta(string? planta)
