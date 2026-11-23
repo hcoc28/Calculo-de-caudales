@@ -1,0 +1,56 @@
+name: Generar referencia de simuladores
+
+# Flujo temporal: ejecuta los simuladores C# actuales con una matriz de entradas y
+# publica el resultado como JSON en la rama "referencia-salida" y como artefacto.
+# Solo corre en la rama "referencia-simuladores" o manualmente.
+
+on:
+  push:
+    branches: [referencia-simuladores]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore backend/CaudalesBackend.Tests/CaudalesBackend.Tests.csproj
+
+      - name: Generar referencia
+        env:
+          REFERENCIA_SALIDA: ${{ github.workspace }}/salida/referencia-simuladores.json
+        run: dotnet test backend/CaudalesBackend.Tests/CaudalesBackend.Tests.csproj --no-restore --configuration Release --filter "FullyQualifiedName~GeneradorReferenciaSimuladores"
+
+      - name: Verificar archivo generado
+        run: |
+          ls -la salida
+          test -s salida/referencia-simuladores.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: referencia-simuladores
+          path: salida/referencia-simuladores.json
+
+      - name: Publicar en la rama referencia-salida
+        run: |
+          mkdir -p /tmp/out
+          cp salida/referencia-simuladores.json /tmp/out/
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan referencia-salida
+          git rm -rf --quiet .
+          cp /tmp/out/referencia-simuladores.json .
+          git add referencia-simuladores.json
+          git commit -m "Referencia de simuladores generada desde ${{ github.sha }}"
+          git push --force origin referencia-salida
